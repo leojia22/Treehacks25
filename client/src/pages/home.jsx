@@ -1,45 +1,103 @@
-import React, { Component, ChangeEvent, useState } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './home.css';
 
-const home = () => {
-    const [age, setAge] = useState(0)
-    const [weight, setWeight] = useState(0)
+const Home = () => {
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState({
+        age: '',
+        weight: ''
+    });
+    const [errors, setErrors] = useState({
+        age: '',
+        weight: ''
+    });
 
-    const handleWeightChange = (event) => {
-        setWeight(event.target.value)
-    }
+    const handleChange = (event) => {
+        const { id, value } = event.target;
+        setFormData(prev => ({
+            ...prev,
+            [id]: value
+        }));
 
-    const handleAgeChange = (event) => {
-        setAge(event.target.value)
-    }
+        // Clear error when user starts typing
+        setErrors(prev => ({
+            ...prev,
+            [id]: ''
+        }));
+    };
+
+    const validateForm = () => {
+        const newErrors = {};
+        
+        if (!formData.weight) {
+            newErrors.weight = 'Weight is required';
+        } else if (formData.weight < 0 || formData.weight > 500) {
+            newErrors.weight = 'Please enter a valid weight (0-500)';
+        }
+
+        if (!formData.age) {
+            newErrors.age = 'Age is required';
+        } else if (formData.age < 0 || formData.age > 120) {
+            newErrors.age = 'Please enter a valid age (0-120)';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     const handleCreatePlanClick = () => {
-        
-    }
+        if (validateForm()) {
+            navigate('/create-plan', { state: formData });
+        }
+    };
 
-  return (
-    <div>
-        Enter weight:
-        <input 
-            type="number"
-            id="weight"
-            value={weight}
-            onChange={handleWeightChange}
-            placeholder="Enter weight"
-        />
-      <br />
-      <br />
-      Enter age:
-      <input 
-        type="number"
-        id="age"
-        value={age}
-        onChange={handleAgeChange}
-        placeholder="Enter age"
-      />
+    return (
+        <div className="container">
+            <h1 className="title">Create Your Plan</h1>
+            
+            <div className="form-group">
+                <label htmlFor="weight" className="label">
+                    Enter weight (lbs):
+                </label>
+                <input 
+                    type="number"
+                    id="weight"
+                    value={formData.weight}
+                    onChange={handleChange}
+                    placeholder="Enter weight"
+                    className={`input ${errors.weight ? 'error' : ''}`}
+                />
+                {errors.weight && (
+                    <p className="error-message">{errors.weight}</p>
+                )}
+            </div>
 
-    <button onClick={handleCreatePlanClick}>Create Plan</button>
-    </div>
-  )
-}
+            <div className="form-group">
+                <label htmlFor="age" className="label">
+                    Enter age:
+                </label>
+                <input 
+                    type="number"
+                    id="age"
+                    value={formData.age}
+                    onChange={handleChange}
+                    placeholder="Enter age"
+                    className={`input ${errors.age ? 'error' : ''}`}
+                />
+                {errors.age && (
+                    <p className="error-message">{errors.age}</p>
+                )}
+            </div>
 
-export default home
+            <button 
+                onClick={handleCreatePlanClick}
+                className="button"
+            >
+                Create Plan
+            </button>
+        </div>
+    );
+};
+
+export default Home;

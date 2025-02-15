@@ -1,6 +1,6 @@
 import React, { Component, ChangeEvent, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import Home from './pages/home'
+import Home from './pages/home.jsx'
 import { useNavigate } from 'react-router-dom';
 
 function App() {
