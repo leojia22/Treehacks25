@@ -1,35 +1,62 @@
-// src/store/fitnessSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { streakService } from '../services/firebase';
+import { streakService, auth } from '../services/firebase';
 
 // Async thunk for initializing streak
 export const initializeStreak = createAsyncThunk(
   'fitness/initializeStreak',
-  async (userId) => {
-    await streakService.initializeUserStreak(userId);
-    const streakData = await streakService.getStreak(userId);
-    return streakData;
+  async (_, { rejectWithValue }) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('No authenticated user found');
+      }
+      
+      await streakService.initializeUserStreak(currentUser.uid);
+      const streakData = await streakService.getStreak(currentUser.uid);
+      return streakData;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
 );
 
 // Async thunk for updating streak
 export const updateDailyStreak = createAsyncThunk(
   'fitness/updateDailyStreak',
-  async (userId) => {
-    const streakData = await streakService.updateStreak(userId);
-    return streakData;
+  async (_, { rejectWithValue }) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('No authenticated user found');
+      }
+
+      const streakData = await streakService.updateStreak(currentUser.uid);
+      return streakData;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
 );
 
 // Async thunk for checking streak
 export const checkAndUpdateStreak = createAsyncThunk(
   'fitness/checkAndUpdateStreak',
-  async (userId) => {
-    const streakData = await streakService.getStreak(userId);
-    return streakData;
+  async (_, { rejectWithValue }) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('No authenticated user found');
+      }
+
+      const streakData = await streakService.getStreak(currentUser.uid);
+      return streakData;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
 );
 
+// Rest of your slice remains the same
 const presetGoals = {
   beginner: {
     distance: { value: 2.0, unit: 'miles', current: 0 },
@@ -67,19 +94,18 @@ export const fitnessSlice = createSlice({
   name: 'fitness',
   initialState,
   reducers: {
+    // Your existing reducers remain the same
     updateGoals: (state, action) => {
       state.goals = action.payload;
     },
     updateFitnessLevel: (state, action) => {
       state.fitnessLevel = action.payload;
-      // Update goals to match new fitness level
       state.goals = presetGoals[action.payload];
     },
     updateProgress: (state, action) => {
       const { type, value } = action.payload;
       state.goals[type].current = value;
 
-      // Check if all goals are completed
       const allCompleted = Object.values(state.goals).every(
         goal => (goal.current / goal.value) >= 1
       );
@@ -89,7 +115,6 @@ export const fitnessSlice = createSlice({
       }
     },
     resetDailyProgress: (state) => {
-      // Reset current values while maintaining targets
       Object.keys(state.goals).forEach(key => {
         state.goals[key].current = 0;
       });
@@ -109,7 +134,7 @@ export const fitnessSlice = createSlice({
       })
       .addCase(initializeStreak.rejected, (state, action) => {
         state.streak.status = 'failed';
-        state.streak.error = action.error.message;
+        state.streak.error = action.payload;
       })
       // Update streak
       .addCase(updateDailyStreak.pending, (state) => {
@@ -122,7 +147,7 @@ export const fitnessSlice = createSlice({
       })
       .addCase(updateDailyStreak.rejected, (state, action) => {
         state.streak.status = 'failed';
-        state.streak.error = action.error.message;
+        state.streak.error = action.payload;
       })
       // Check streak
       .addCase(checkAndUpdateStreak.fulfilled, (state, action) => {
@@ -132,7 +157,7 @@ export const fitnessSlice = createSlice({
   }
 });
 
-// Export actions
+// Export your existing actions and selectors
 export const { 
   updateGoals, 
   updateFitnessLevel, 
@@ -140,13 +165,13 @@ export const {
   resetDailyProgress 
 } = fitnessSlice.actions;
 
-// Selectors
 export const selectCurrentStreak = (state) => state.fitness.streak.current;
 export const selectGoals = (state) => state.fitness.goals;
 export const selectFitnessLevel = (state) => state.fitness.fitnessLevel;
 export const selectDailyProgress = (state) => state.fitness.dailyProgress;
+export const selectStreakStatus = (state) => state.fitness.streak.status;
+export const selectStreakError = (state) => state.fitness.streak.error;
 
-// Progress calculations
 export const selectGoalProgress = (state) => {
   const goals = state.fitness.goals;
   return Object.keys(goals).reduce((acc, key) => {

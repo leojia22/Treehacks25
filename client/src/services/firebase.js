@@ -9,23 +9,23 @@ import {
 } from 'firebase/auth';
 import { 
     getFirestore, 
-    collection,
     doc, 
-    getDoc, 
-    setDoc, 
+    getDoc,
+    setDoc,
     updateDoc,
     serverTimestamp
 } from 'firebase/firestore';
 import { differenceInDays, startOfDay } from 'date-fns';
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyD64jDtSIROG3ApTlpPD7WJRTNCgEmbmp8",
-    authDomain: "running-app-3c8af.firebaseapp.com",
-    projectId: "running-app-3c8af",
-    storageBucket: "running-app-3c8af.appspot.com",
-    messagingSenderId: "1019404978793",
-    appId: "1:1019404978793:web:f17e7721f57f64e6e5ab62"
+  authDomain: "fit-streak-79534.firebaseapp.com",
+  databaseURL: "https://fit-streak-79534-default-rtdb.firebaseio.com",
+  projectId: "fit-streak-79534",
+  storageBucket: "fit-streak-79534.firebasestorage.app",
+  messagingSenderId: "78437991007",
+  appId: "1:78437991007:web:687fcbff074412fdd3d1ea",
+  measurementId: "G-T4JKE250K3"
 };
 
 // Initialize Firebase
@@ -33,219 +33,196 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Default user data
-const defaultUserData = {
-    streak: 0,
-    lastCheckIn: null,
-    createdAt: serverTimestamp(),
-    goals: {
-        distance: { value: 2.0, unit: 'miles', current: 0 },
-        time: { value: 20, unit: 'mins', current: 0 },
-        calories: { value: 200, unit: 'cal', current: 0 }
-    }
-};
-
-// Auth service
+// src/services/firebase.js
 export const authService = {
-    // Register new user
     register: async (email, password) => {
         try {
+            console.log('Starting registration process for:', email);
+            
+            // Create user in Authentication
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
+            console.log('User created in Authentication:', user.uid);
 
-            // Create user document in Firestore
+            // Verify the user is properly authenticated
+            const currentUser = auth.currentUser;
+            console.log('Current authenticated user:', currentUser?.uid);
+            
+            if (!currentUser) {
+                throw new Error('User not properly authenticated after creation');
+            }
+
+            // Create the user document in Firestore
             const userRef = doc(db, 'users', user.uid);
-            await setDoc(userRef, {
-                ...defaultUserData,
+            console.log('Attempting to create Firestore document for user:', user.uid);
+
+            // Get the user's ID token to verify authentication state
+            const idToken = await currentUser.getIdToken();
+            console.log('Successfully obtained user ID token');
+
+            const userData = {
                 email: user.email,
-            });
+                createdAt: serverTimestamp(),
+                streak: 1,
+                lastCheckIn: null,
+                goals: {
+                    distance: { value: 2.0, unit: 'miles', current: 0 },
+                    time: { value: 20, unit: 'mins', current: 0 },
+                    calories: { value: 200, unit: 'cal', current: 0 }
+                }
+            };
+
+            console.log('User data to be stored:', userData);
+
+            try {
+                // Verify the document doesn't already exist
+                const docSnap = await getDoc(userRef);
+                if (docSnap.exists()) {
+                    console.log('Document already exists for user:', user.uid);
+                    return user;
+                }
+
+                await setDoc(userRef, userData);
+                console.log('Successfully created Firestore document');
+                
+                // Verify the document was created
+                const verifyDoc = await getDoc(userRef);
+                if (!verifyDoc.exists()) {
+                    throw new Error('Document was not created successfully');
+                }
+                console.log('Verified document creation:', verifyDoc.data());
+            } catch (firestoreError) {
+                console.error('Firestore error details:', {
+                    code: firestoreError.code,
+                    message: firestoreError.message,
+                    stack: firestoreError.stack
+                });
+                
+                if (firestoreError.code === 'permission-denied') {
+                    console.error('Permission denied. Check Firestore rules.');
+                    console.log('Current security context:', {
+                        uid: currentUser.uid,
+                        email: currentUser.email,
+                        isAnonymous: currentUser.isAnonymous,
+                        emailVerified: currentUser.emailVerified
+                    });
+                }
+                throw firestoreError;
+            }
 
             return user;
         } catch (error) {
-            console.error('Registration error:', error);
+            console.error('Registration error:', {
+                code: error.code,
+                message: error.message,
+                stack: error.stack
+            });
             throw error;
         }
     },
 
-    // Sign in existing user
-    login: async (email, password) => {
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            return userCredential.user;
-        } catch (error) {
-            console.error('Login error:', error);
-            throw error;
-        }
-    },
-
-    // Sign out
-    logout: async () => {
-        try {
-            await signOut(auth);
-        } catch (error) {
-            console.error('Logout error:', error);
-            throw error;
-        }
-    },
-
-    // Get current user
+    // ... rest of the service
     getCurrentUser: () => {
         return auth.currentUser;
     },
 
-    // Subscribe to auth state changes
     subscribeToAuthChanges: (callback) => {
         return onAuthStateChanged(auth, callback);
     }
 };
 
-// Streak service
 export const streakService = {
-    // Initialize user streak
     async initializeUserStreak(userId) {
-        if (!userId) throw new Error('User ID is required');
-
-        try {
-            const userRef = doc(db, 'users', userId);
-            const userDoc = await getDoc(userRef);
-
-            if (!userDoc.exists()) {
-                await setDoc(userRef, defaultUserData);
-            }
-        } catch (error) {
-            console.error('Error initializing user streak:', error);
-            throw new Error('Failed to initialize user data');
+        console.log('Starting initializeUserStreak with userId:', userId);
+        
+        if (!userId) {
+            console.error('No userId provided to initializeUserStreak');
+            throw new Error('User ID is required');
         }
-    },
 
-    // Update streak
-    async updateStreak(userId) {
-        if (!userId) throw new Error('User ID is required');
+        // Verify authentication state
+        const currentUser = auth.currentUser;
+        console.log('Current authenticated user:', currentUser?.uid);
+        
+        if (!currentUser) {
+            console.error('No authenticated user found');
+            throw new Error('User must be authenticated');
+        }
 
-        try {
-            const userRef = doc(db, 'users', userId);
-            const userDoc = await getDoc(userRef);
-            
-            if (!userDoc.exists()) {
-                await this.initializeUserStreak(userId);
-                return { streak: 0, lastCheckIn: null };
-            }
-
-            const userData = userDoc.data();
-            const now = startOfDay(new Date());
-            const lastCheckIn = userData.lastCheckIn ? startOfDay(userData.lastCheckIn.toDate()) : null;
-            
-            let newStreak = userData.streak || 0;
-            
-            if (!lastCheckIn) {
-                // First check-in
-                newStreak = 1;
-            } else {
-                const daysSinceLastCheckIn = differenceInDays(now, lastCheckIn);
-                
-                if (daysSinceLastCheckIn === 1) {
-                    // Consecutive day, increment streak
-                    newStreak += 1;
-                } else if (daysSinceLastCheckIn === 0) {
-                    // Same day, keep streak
-                    return {
-                        streak: newStreak,
-                        lastCheckIn
-                    };
-                } else {
-                    // Missed a day, reset streak
-                    newStreak = 1;
-                }
-            }
-
-            // Update in Firebase
-            await updateDoc(userRef, {
-                streak: newStreak,
-                lastCheckIn: now
+        if (currentUser.uid !== userId) {
+            console.error('User ID mismatch:', {
+                providedId: userId,
+                currentUserId: currentUser.uid
             });
-
-            return {
-                streak: newStreak,
-                lastCheckIn: now
-            };
-        } catch (error) {
-            console.error('Error updating streak:', error);
-            throw new Error('Failed to update streak');
+            throw new Error('User ID mismatch');
         }
-    },
-
-    // Get current streak
-    async getStreak(userId) {
-        if (!userId) throw new Error('User ID is required');
 
         try {
             const userRef = doc(db, 'users', userId);
+            console.log('Attempting to access document at:', `users/${userId}`);
+            
             const userDoc = await getDoc(userRef);
-            
-            if (!userDoc.exists()) {
-                await this.initializeUserStreak(userId);
-                return { streak: 0, lastCheckIn: null };
-            }
+            console.log('Document exists?', userDoc.exists());
 
-            const userData = userDoc.data();
-            const lastCheckIn = userData.lastCheckIn ? userData.lastCheckIn.toDate() : null;
-            
-            // Check if streak should be reset
-            if (lastCheckIn) {
-                const daysSinceLastCheckIn = differenceInDays(new Date(), lastCheckIn);
-                if (daysSinceLastCheckIn > 1) {
-                    // Reset streak if more than one day has passed
-                    await updateDoc(userRef, {
-                        streak: 0
+            if (!userDoc.exists()) {
+                console.log('Creating new user document...');
+                const userData = {
+                    streak: 1,
+                    lastCheckIn: null,
+                    goals: {
+                        distance: { value: 2.0, unit: 'miles', current: 0 },
+                        time: { value: 20, unit: 'mins', current: 0 },
+                        calories: { value: 200, unit: 'cal', current: 0 }
+                    }
+                };
+
+                try {
+                    await setDoc(userRef, userData);
+                    console.log('Successfully created user document');
+                } catch (writeError) {
+                    console.error('Error writing document:', {
+                        code: writeError.code,
+                        message: writeError.message,
+                        details: writeError
                     });
-                    return { streak: 0, lastCheckIn };
+                    throw writeError;
                 }
             }
 
-            return {
-                streak: userData.streak || 0,
-                lastCheckIn
-            };
+            return { streak: 1, lastCheckIn: null };
         } catch (error) {
-            console.error('Error getting streak:', error);
-            throw new Error('Failed to get streak');
+            console.error('Error in initializeUserStreak:', {
+                code: error.code,
+                message: error.message,
+                details: error
+            });
+            throw error; // Throw the original error to preserve the error details
         }
-    }
-};
+    },
 
-// Goals service
-export const goalsService = {
-    // Get user goals
-    async getUserGoals(userId) {
-        if (!userId) throw new Error('User ID is required');
+    async getStreak(userId) {
+        if (!userId) {
+            console.error('No userId provided to getStreak');
+            throw new Error('User ID is required');
+        }
 
         try {
             const userRef = doc(db, 'users', userId);
             const userDoc = await getDoc(userRef);
-            
+
             if (!userDoc.exists()) {
+                console.error('User document not found');
                 throw new Error('User document not found');
             }
 
-            return userDoc.data().goals;
+            const userData = userDoc.data();
+            return {
+                streak: userData.streak || 0,
+                lastCheckIn: userData.lastCheckIn
+            };
         } catch (error) {
-            console.error('Error getting goals:', error);
-            throw new Error('Failed to get user goals');
-        }
-    },
-
-    // Update user goals
-    async updateGoals(userId, newGoals) {
-        if (!userId) throw new Error('User ID is required');
-
-        try {
-            const userRef = doc(db, 'users', userId);
-            await updateDoc(userRef, {
-                goals: newGoals
-            });
-        } catch (error) {
-            console.error('Error updating goals:', error);
-            throw new Error('Failed to update goals');
+            console.error('Error getting streak:', error);
+            throw error;
         }
     }
 };
