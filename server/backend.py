@@ -32,5 +32,13 @@ def consume_terra_webhook():
 
     return flask.Response(status=200)
 
+@app.route('/authenticate', methods=['GET'])
+def authenticate():
+    widget_response = terra.generate_widget_session(providers=['GARMIN'], reference_='1234')
+    widget_url = widget_response.get_json()['url']
+    return flask.Response(f"<button onclick=\"location.href='{widget_url}'\">Authenticate with GARMIN</button>", mimetype='text/html')
+    
+
+
 if __name__ == "__main__":
     app.run()
