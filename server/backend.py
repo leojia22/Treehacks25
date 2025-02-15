@@ -5,6 +5,7 @@ from flask import request
 from terra.base_client import Terra
 
 import datetime
+import requests
 
 logging.basicConfig(level=logging.INFO)
 
@@ -53,6 +54,21 @@ def backfill():
     )
 
     return sleep_data.get_json()
+
+@app.route('/authToken', methods=['GET'])
+def auth_token():
+    url = 'https://api.tryterra.co/v2/auth/generateAuthToken'
+
+    headers = {
+        "accept": "application/json",
+        "x-api-key": api_key,
+        "dev-id": dev_id,
+    }
+
+    token_response = requests.post(url=url, headers=headers)
+
+    return token_response.text
+
 
 if __name__ == "__main__":
     app.run()
