@@ -1,27 +1,75 @@
-import React, { Component, ChangeEvent, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import Home from './pages/home';
-import Plan from './pages/Plan';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { authService } from './services/firebase';
+import { setUser, clearUser } from './store/authSlice';
+
+// Pages
+import Homepage from './pages/Homepage';
+import EditPlan from './pages/EditPlan';
+import Login from './components/Login';
+
+// Components
+import PrivateRoute from './components/PrivateRoute';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
+
+  useEffect(() => {
+    const unsubscribe = authService.subscribeToAuthChanges((user) => {
+      if (user) {
+        dispatch(setUser({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName
+        }));
+      } else {
+        dispatch(clearUser());
+      }
+    });
+  
+    return () => unsubscribe();
+  }, [dispatch]);
 
   return (
-    <>
-      <BrowserRouter>
-      <nav>
-        <Link to="/"></Link>
-      </nav>
+    <BrowserRouter>
+      <div className="app">
+        <Routes>
+          {/* Public Routes */}
+          <Route 
+            path="/login" 
+            element={user ? <Navigate to="/" /> : <Login />} 
+          />
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/plan" element={<Plan />} />
-      </Routes>
+          {/* Protected Routes */}
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Homepage />
+              </PrivateRoute>
+            }
+          />
+          
+          <Route
+            path="/edit-plan"
+            element={
+              <PrivateRoute>
+                <EditPlan />
+              </PrivateRoute>
+            }
+          />
 
-      </BrowserRouter>
-    </>
-  )
+          {/* Catch all route - redirect to home */}
+          <Route
+            path="*"
+            element={<Navigate to="/" />}
+          />
+        </Routes>
+      </div>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
