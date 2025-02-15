@@ -4,6 +4,7 @@ import flask
 from flask import request
 from terra.base_client import Terra
 
+import datetime
 
 logging.basicConfig(level=logging.INFO)
 
@@ -38,7 +39,20 @@ def authenticate():
     widget_url = widget_response.get_json()['url']
     return flask.Response(f"<button onclick=\"location.href='{widget_url}'\">Authenticate with GARMIN</button>", mimetype='text/html')
     
+# 164bd16d-b5f9-4dd4-83e8-bada13a43104
+@app.route('/backfill', methods=['GET'])
+def backfill():
+    user_id = '0b636ce7-bf91-4e5a-bfcb-44d25e460054'
 
+    terra_user = terra.from_user_id(user_id)
+
+    sleep_data = terra_user.get_sleep(
+        start_date=datetime.datetime(2025, 2, 15),
+        end_date=datetime.datetime(2025, 2, 17),
+        to_webhook=False, with_samples=True
+    )
+
+    return sleep_data.get_json()
 
 if __name__ == "__main__":
     app.run()
