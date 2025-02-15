@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './home.css';
+import './Home.css';
 
 const Home = () => {
     const navigate = useNavigate();
@@ -48,7 +48,7 @@ const Home = () => {
 
     const handleCreatePlanClick = () => {
         if (validateForm()) {
-            navigate('/create-plan', { state: formData });
+            navigate('/plan', { state: formData });
         }
     };
 
