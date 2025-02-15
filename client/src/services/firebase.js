@@ -227,4 +227,21 @@ export const streakService = {
     }
 };
 
+import axios from "axios";
+
+const BACKEND_URL = "http://localhost:5000";
+
+export const terraService = {
+    async getTerraAuthToken(userId) {
+        try {
+            const response = await axios.post(`${BACKEND_URL}/authToken`, { reference_id: userId });
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching Terra Auth Token:", error);
+            return null;
+        }
+    }
+};
+
+
 export { auth, db };

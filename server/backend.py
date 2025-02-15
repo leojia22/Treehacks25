@@ -55,19 +55,28 @@ def backfill():
 
     return sleep_data.get_json()
 
-@app.route('/authToken', methods=['GET'])
+@app.route('/authToken', methods=['POST'])
 def auth_token():
     url = 'https://api.tryterra.co/v2/auth/generateAuthToken'
+    
+    data = request.get_json()
+    reference_id = data.get("reference_id")
 
     headers = {
         "accept": "application/json",
         "x-api-key": api_key,
         "dev-id": dev_id,
+        "Content-Type": "application/json"
     }
 
-    token_response = requests.post(url=url, headers=headers)
+    payload = {"reference_id": reference_id}
 
-    return token_response.text
+    try:
+        token_response = requests.post(url, json=payload, headers=headers)
+        return token_response.text
+    except Exception as e:
+        return flask.jsonify({"error": str(e)}), 500
+
 
 
 if __name__ == "__main__":
