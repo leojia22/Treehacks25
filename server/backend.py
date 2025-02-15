@@ -1,8 +1,11 @@
 import logging
 
 import flask
-from flask import request
 from terra.base_client import Terra
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import os
 
 import datetime
 import requests
@@ -12,6 +15,7 @@ logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger("app")
 
 app = flask.Flask(__name__)
+CORS(app)
 
 webhook_secret = "5803b7fc21a38e8ef188f6ed3d6e63e9d096fa72cf3eccd7"
 dev_id = '4actk-fitstreak-testing-wfRE9vBU8U'
@@ -72,12 +76,10 @@ def auth_token():
     payload = {"reference_id": reference_id}
 
     try:
-        token_response = requests.post(url, json=payload, headers=headers)
-        return token_response.text
+        response = requests.post(url, json=payload, headers=headers)
+        return response.text  # Return the token response
     except Exception as e:
-        return flask.jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-
-
-if __name__ == "__main__":
-    app.run()
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
