@@ -637,16 +637,42 @@ def update_metrics():
             "message": str(e)
         }), 500
 
-def _build_cors_preflight_response():
-    response = make_response()
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
-    return response
+@app.route('/update_goals', methods=['POST', 'OPTIONS'])
+def update_goals():
+    if request.method == "OPTIONS":
+        return _build_cors_preflight_response()
 
-def _corsify_actual_response(response):
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
+    try:
+        data = request.get_json()
+        print(f"[DEBUG] Received goals update request with data: {data}")
+        
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "Missing goals data"
+            }), 400
+
+        # Save updated goals
+        with open('goals.json', 'w') as f:
+            json.dump(data, f)
+
+        print(f"[DEBUG] Updated goals.json with: {data}")
+
+        # Read back the goals to verify
+        with open('goals.json', 'r') as f:
+            saved_goals = json.load(f)
+        print(f"[DEBUG] Verified saved goals: {saved_goals}")
+
+        return jsonify({
+            "status": "success",
+            "goals": saved_goals
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Error updating goals: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 @app.route('/get_goals', methods=['GET'])
 def get_goals():
@@ -663,6 +689,17 @@ def get_goals():
             "status": "error",
             "message": str(e)
         }), 500
+
+def _build_cors_preflight_response():
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
+    return response
+
+def _corsify_actual_response(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True, port=5002)

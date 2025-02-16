@@ -54,7 +54,9 @@ const Homepage = () => {
     };
 
     const calculateProgress = (goal) => {
-        return Math.round((goal.current / goal.value) * 100);
+        if (!goal.value) return 0;
+        const progress = (goal.current / goal.value) * 100;
+        return Math.min(Math.max(progress, 0), 100); // Clamp between 0 and 100
     };
 
     const [suggestedGoals, setSuggestedGoals] = useState(null);
@@ -94,23 +96,23 @@ const Homepage = () => {
     const formattedGoals = [
         {
             title: "Distance",
-            target: `${goals.distance.value} ${goals.distance.unit}`,
-            current: `${goals.distance.current} ${goals.distance.unit}`,
-            progress: calculateProgress(goals.distance),
-            icon: '🏃‍♂️'
+            target: `${goals.distance?.value || 0} ${goals.distance?.unit || 'miles'}`,
+            current: `${goals.distance?.current || 0} ${goals.distance?.unit || 'miles'}`,
+            progress: calculateProgress(goals.distance || { value: 0, current: 0 }),
+            icon: '🏃'
         },
         {
             title: "Time",
-            target: `${goals.time.value} ${goals.time.unit}`,
-            current: `${goals.time.current} ${goals.time.unit}`,
-            progress: calculateProgress(goals.time),
+            target: `${goals.time?.value || 0} ${goals.time?.unit || 'mins'}`,
+            current: `${goals.time?.current || 0} ${goals.time?.unit || 'mins'}`,
+            progress: calculateProgress(goals.time || { value: 0, current: 0 }),
             icon: '⏱️'
         },
         {
             title: "Calories",
-            target: `${goals.calories.value} ${goals.calories.unit}`,
-            current: `${goals.calories.current} ${goals.calories.unit}`,
-            progress: calculateProgress(goals.calories),
+            target: `${goals.calories?.value || 0} ${goals.calories?.unit || 'cal'}`,
+            current: `${goals.calories?.current || 0} ${goals.calories?.unit || 'cal'}`,
+            progress: calculateProgress(goals.calories || { value: 0, current: 0 }),
             icon: '🔥'
         }
     ];

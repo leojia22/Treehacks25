@@ -258,22 +258,34 @@ export const streakService = {
 export const goalsService = {
     async getGoals() {
         try {
-            const response = await fetch('http://localhost:5002/get_goals');
-            const data = await response.json();
-            if (data.status === 'error') throw new Error(data.error);
-            return data.goals;
+            const user = auth.currentUser;
+            if (!user) throw new Error('No authenticated user');
+
+            const userRef = doc(db, 'users', user.uid);
+            const docSnap = await getDoc(userRef);
+            
+            if (!docSnap.exists()) throw new Error('User document not found');
+            
+            return docSnap.data().goals;
         } catch (error) {
             console.error('Error getting goals:', error);
             throw error;
         }
     },
 
-    async updateGoals() {
+    async updateGoals(goals) {
         try {
-            const response = await fetch('http://localhost:5002/get_goals');
-            const data = await response.json();
-            if (data.status === 'error') throw new Error(data.error);
-            return data.goals;
+            const user = auth.currentUser;
+            if (!user) throw new Error('No authenticated user');
+
+            const userRef = doc(db, 'users', user.uid);
+            await updateDoc(userRef, { goals });
+            
+            // Verify the update
+            const docSnap = await getDoc(userRef);
+            if (!docSnap.exists()) throw new Error('User document not found');
+            
+            return docSnap.data().goals;
         } catch (error) {
             console.error('Error updating goals:', error);
             throw error;
