@@ -17,22 +17,21 @@ const Homepage = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const { goals } = useSelector((state) => state.fitness);
-    const { current: streakCount, status: streakStatus, error: streakError } = 
-        useSelector((state) => state.fitness.streak);
-    const userId = 'current-user-id'; // Replace with actual user ID from auth
+    const streak = useSelector((state) => state.fitness.streak);
+    const streakCount = streak.current || 0;
 
     useEffect(() => {
         // Initialize streak when component mounts
-        dispatch(initializeStreak(userId));
-        dispatch(checkAndUpdateStreak(userId));
+        dispatch(initializeStreak());
+        dispatch(checkAndUpdateStreak());
 
         // Check streak every hour
         const streakInterval = setInterval(() => {
-            dispatch(checkAndUpdateStreak(userId));
+            dispatch(checkAndUpdateStreak());
         }, 3600000); // every hour
 
         return () => clearInterval(streakInterval);
-    }, [dispatch, userId]);
+    }, [dispatch]);
 
     useEffect(() => {
         // Initial goals fetch
@@ -48,7 +47,7 @@ const Homepage = () => {
 
     const handleUpdateStreak = async () => {
         try {
-            await dispatch(updateDailyStreak(userId)).unwrap();
+            await dispatch(updateDailyStreak()).unwrap();
         } catch (error) {
             console.error('Failed to update streak:', error);
         }
@@ -182,10 +181,10 @@ const Homepage = () => {
             <div className="content">
                 <div className="streak-section">
                     <div className="streak-card">
-                        {streakStatus === 'loading' ? (
+                        {streak.status === 'loading' ? (
                             <div className="streak-loading">Loading streak...</div>
-                        ) : streakStatus === 'failed' ? (
-                            <div className="streak-error">Error: {streakError}</div>
+                        ) : streak.status === 'failed' ? (
+                            <div className="streak-error">Error: {streak.error}</div>
                         ) : (
                             <>
                                 <div className="streak-number">{streakCount}</div>

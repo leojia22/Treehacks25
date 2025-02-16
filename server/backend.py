@@ -1,8 +1,8 @@
 import logging
 import os
 import re
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify, make_response
+from flask_cors import CORS, cross_origin
 from terra.base_client import Terra
 import datetime
 import requests
@@ -490,29 +490,33 @@ def get_bodyfat_category(bf_percentage):
     else:
         return "above average"
 
-# Global variable to store streak count and file path
-STREAK_FILE = 'streak.json'
+# Global variable to store streak count
+streak_count = 0
+last_check_in = None
 
-def load_streak():
+@app.route('/get_streak', methods=['GET'])
+def get_streak():
+    global streak_count, last_check_in
     try:
-        with open(STREAK_FILE, 'r') as f:
-            data = json.load(f)
-            return {
-                'streak': data.get('streak', 0),
-                'last_check_in': data.get('last_check_in', None)
+        print(f"[GET] Current streak count: {streak_count}, Last check-in: {last_check_in}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "lastCheckIn": last_check_in,
+                "status": "success",
+                "error": None
             }
-    except FileNotFoundError:
-        return {'streak': 0, 'last_check_in': None}
-
-def save_streak(streak_data):
-    with open(STREAK_FILE, 'w') as f:
-        json.dump(streak_data, f)
-
-# Initialize streak from file
-streak_data = load_streak()
-streak_count = streak_data['streak']
-last_check_in = streak_data['last_check_in']
-print(f"Initial streak count loaded: {streak_count}, Last check-in: {last_check_in}")
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Failed to get streak: {str(e)}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "lastCheckIn": last_check_in,
+                "status": "error",
+                "error": str(e)
+            }
+        }), 500
 
 @app.route('/update_streak', methods=['POST', 'OPTIONS'])
 def update_streak():
@@ -532,11 +536,7 @@ def update_streak():
             print(f"[UPDATE] Current streak before increment: {streak_count}")
             streak_count += 1
             last_check_in = current_date
-            save_streak({
-                'streak': streak_count,
-                'last_check_in': last_check_in
-            })
-            print(f"[UPDATE] New streak count saved: {streak_count}, Last check-in: {last_check_in}")
+            print(f"[UPDATE] New streak count: {streak_count}, Last check-in: {last_check_in}")
         
         return jsonify({
             "streak": {
@@ -548,35 +548,6 @@ def update_streak():
         }), 200
     except Exception as e:
         print(f"[ERROR] Failed to update streak: {str(e)}")
-        return jsonify({
-            "streak": {
-                "current": streak_count,
-                "lastCheckIn": last_check_in,
-                "status": "error",
-                "error": str(e)
-            }
-        }), 500
-
-@app.route('/get_streak', methods=['GET'])
-def get_streak():
-    global streak_count, last_check_in
-    try:
-        # Load latest data from file
-        streak_data = load_streak()
-        streak_count = streak_data['streak']
-        last_check_in = streak_data['last_check_in']
-        
-        print(f"[GET] Current streak count: {streak_count}, Last check-in: {last_check_in}")
-        return jsonify({
-            "streak": {
-                "current": streak_count,
-                "lastCheckIn": last_check_in,
-                "status": "success",
-                "error": None
-            }
-        }), 200
-    except Exception as e:
-        print(f"[ERROR] Failed to get streak: {str(e)}")
         return jsonify({
             "streak": {
                 "current": streak_count,
@@ -600,10 +571,6 @@ def reset_streak():
         print(f"[RESET] Current streak before reset: {streak_count}")
         streak_count = 0
         last_check_in = None
-        save_streak({
-            'streak': streak_count,
-            'last_check_in': last_check_in
-        })
         print(f"[RESET] Streak reset to: {streak_count}")
         return jsonify({
             "streak": {
@@ -625,13 +592,10 @@ def reset_streak():
         }), 500
 
 @app.route('/update_metrics', methods=['POST', 'OPTIONS'])
+@cross_origin()
 def update_metrics():
     if request.method == "OPTIONS":
-        response = jsonify({"message": "OPTIONS request received"})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
+        return _build_cors_preflight_response()
 
     try:
         data = request.get_json()
@@ -661,10 +625,11 @@ def update_metrics():
 
         print(f"[UPDATE] Updated goals with metrics: {goals}")
 
-        return jsonify({
+        response = jsonify({
             "status": "success",
             "goals": goals
-        }), 200
+        })
+        return _corsify_actual_response(response)
 
     except Exception as e:
         print(f"Error updating metrics: {str(e)}")
@@ -672,6 +637,17 @@ def update_metrics():
             "status": "error",
             "message": str(e)
         }), 500
+
+def _build_cors_preflight_response():
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
+    return response
+
+def _corsify_actual_response(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
 
 @app.route('/get_goals', methods=['GET'])
 def get_goals():

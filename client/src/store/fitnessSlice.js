@@ -1,19 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { streakService, auth, goalsService } from '../services/firebase';
+import { auth, goalsService } from '../services/firebase';
 
 // Async thunk for initializing streak
 export const initializeStreak = createAsyncThunk(
   'fitness/initializeStreak',
   async (_, { rejectWithValue }) => {
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error('No authenticated user found');
-      }
-      
-      await streakService.initializeUserStreak(currentUser.uid);
-      const streakData = await streakService.getStreak(currentUser.uid);
-      return streakData;
+      const response = await fetch('http://localhost:5002/get_streak');
+      const data = await response.json();
+      return data.streak;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -25,13 +20,11 @@ export const updateDailyStreak = createAsyncThunk(
   'fitness/updateDailyStreak',
   async (_, { rejectWithValue }) => {
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error('No authenticated user found');
-      }
-
-      const streakData = await streakService.updateStreak(currentUser.uid);
-      return streakData;
+      const response = await fetch('http://localhost:5002/update_streak', {
+        method: 'POST'
+      });
+      const data = await response.json();
+      return data.streak;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -41,10 +34,11 @@ export const updateDailyStreak = createAsyncThunk(
 // Async thunk for checking streak
 export const checkAndUpdateStreak = createAsyncThunk(
   'fitness/checkAndUpdateStreak',
-  async (userId) => {
+  async () => {
     try {
-      const streak = await streakService.checkStreak(userId);
-      return streak;
+      const response = await fetch('http://localhost:5002/get_streak');
+      const data = await response.json();
+      return data.streak;
     } catch (error) {
       throw error;
     }
@@ -154,7 +148,7 @@ export const fitnessSlice = createSlice({
       })
       .addCase(updateDailyStreak.fulfilled, (state, action) => {
         state.streak.status = 'succeeded';
-        state.streak.current = action.payload.streak;
+        state.streak.current = action.payload.current;
         state.streak.lastCheckIn = action.payload.lastCheckIn;
       })
       .addCase(updateDailyStreak.rejected, (state, action) => {
