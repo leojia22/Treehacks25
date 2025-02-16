@@ -174,7 +174,7 @@ def analyze_garmin_data():
         2. Specific recommendations for improvement
         3. Health insights based on these metrics
         
-        Format the response as a JSON with 'recommendation' and 'insights' fields.
+        Give recommendations and insights based on this data. Give both as a neat, concise, and presentable summary paragraph.
         """
 
         # Get AI analysis
@@ -239,14 +239,14 @@ def analyze_sleep_patterns():
         2. Specific recommendations for improvement
         3. Health insights based on these metrics
         
-        Format the response as a JSON with 'recommendation' and 'insights' fields.
+        Give recommendations and insights based on this data. Give both as a neat, concise, and presentable summary paragraph.
         """
 
         # Get AI analysis
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a sleep expert providing evidence-based recommendations."},
+                {"role": "system", "content": "You are an expert fitness trainer and health coach."},
                 {"role": "user", "content": analysis_prompt}
             ],
             temperature=0.7
@@ -313,18 +313,14 @@ def analyze_body_composition():
         - Muscle Mass: {changes['muscle_mass']:.1f}g
         - Water: {changes['water']:.1f}%
         
-        Please provide an analysis including:
-        1. Overall assessment
-        2. Analysis of changes
-        3. Recommendations
-        4. Health considerations
+Give recommendations and insights based on this data. Give both as a neat, concise, and presentable summary paragraph.
         """
 
         # Get AI analysis
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a body composition expert providing evidence-based recommendations."},
+                {"role": "system", "content": "You are an expert fitness trainer and health coach."},
                 {"role": "user", "content": analysis_prompt}
             ],
             temperature=0.7
