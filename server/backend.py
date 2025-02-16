@@ -531,12 +531,11 @@ def update_streak():
     try:
         current_date = datetime.datetime.now().strftime('%Y-%m-%d')
         
-        # Only increment streak if it's a new day
-        if last_check_in != current_date:
-            print(f"[UPDATE] Current streak before increment: {streak_count}")
-            streak_count += 1
-            last_check_in = current_date
-            print(f"[UPDATE] New streak count: {streak_count}, Last check-in: {last_check_in}")
+        # Increment streak and update last check-in
+        print(f"[UPDATE] Current streak before increment: {streak_count}")
+        streak_count += 1
+        last_check_in = current_date
+        print(f"[UPDATE] New streak count: {streak_count}, Last check-in: {last_check_in}")
         
         return jsonify({
             "streak": {
