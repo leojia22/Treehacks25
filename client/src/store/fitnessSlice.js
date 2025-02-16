@@ -141,7 +141,7 @@ export const fitnessSlice = createSlice({
       })
       .addCase(initializeStreak.fulfilled, (state, action) => {
         state.streak.status = 'idle';
-        state.streak.current = action.payload.streakCount;
+        state.streak.current = action.payload.current;
         state.streak.lastCheckIn = action.payload.lastCheckIn;
       })
       .addCase(initializeStreak.rejected, (state, action) => {
@@ -170,7 +170,7 @@ export const fitnessSlice = createSlice({
       })
       .addCase(checkAndUpdateStreak.fulfilled, (state, action) => {
         state.streak.status = 'idle';
-        state.streak.current = action.payload.streakCount;
+        state.streak.current = action.payload.current;
         state.streak.lastCheckIn = action.payload.lastCheckIn;
         state.streak.error = null;
       })
@@ -199,6 +199,7 @@ export const selectFitnessLevel = (state) => state.fitness.fitnessLevel;
 export const selectDailyProgress = (state) => state.fitness.dailyProgress;
 export const selectStreakStatus = (state) => state.fitness.streak.status;
 export const selectStreakError = (state) => state.fitness.streak.error;
+export const selectLastCheckIn = (state) => state.fitness.streak.lastCheckIn;
 
 // Helper selector to calculate goal progress
 export const selectGoalProgress = (state) => {

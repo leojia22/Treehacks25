@@ -497,21 +497,26 @@ def load_streak():
     try:
         with open(STREAK_FILE, 'r') as f:
             data = json.load(f)
-            return data.get('streak', 0)
+            return {
+                'streak': data.get('streak', 0),
+                'last_check_in': data.get('last_check_in', None)
+            }
     except FileNotFoundError:
-        return 0
+        return {'streak': 0, 'last_check_in': None}
 
-def save_streak(count):
+def save_streak(streak_data):
     with open(STREAK_FILE, 'w') as f:
-        json.dump({'streak': count}, f)
+        json.dump(streak_data, f)
 
 # Initialize streak from file
-streak_count = load_streak()
-print(f"Initial streak count loaded: {streak_count}")
+streak_data = load_streak()
+streak_count = streak_data['streak']
+last_check_in = streak_data['last_check_in']
+print(f"Initial streak count loaded: {streak_count}, Last check-in: {last_check_in}")
 
 @app.route('/update_streak', methods=['POST', 'OPTIONS'])
 def update_streak():
-    global streak_count
+    global streak_count, last_check_in
     if request.method == "OPTIONS":
         response = jsonify({"message": "OPTIONS request received"})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -520,13 +525,23 @@ def update_streak():
         return response
 
     try:
-        print(f"[UPDATE] Current streak before increment: {streak_count}")
-        streak_count += 1
-        save_streak(streak_count)
-        print(f"[UPDATE] New streak count saved: {streak_count}")
+        current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+        
+        # Only increment streak if it's a new day
+        if last_check_in != current_date:
+            print(f"[UPDATE] Current streak before increment: {streak_count}")
+            streak_count += 1
+            last_check_in = current_date
+            save_streak({
+                'streak': streak_count,
+                'last_check_in': last_check_in
+            })
+            print(f"[UPDATE] New streak count saved: {streak_count}, Last check-in: {last_check_in}")
+        
         return jsonify({
             "streak": {
                 "current": streak_count,
+                "lastCheckIn": last_check_in,
                 "status": "success",
                 "error": None
             }
@@ -536,6 +551,7 @@ def update_streak():
         return jsonify({
             "streak": {
                 "current": streak_count,
+                "lastCheckIn": last_check_in,
                 "status": "error",
                 "error": str(e)
             }
@@ -543,13 +559,18 @@ def update_streak():
 
 @app.route('/get_streak', methods=['GET'])
 def get_streak():
-    global streak_count
+    global streak_count, last_check_in
     try:
-        streak_count = load_streak()  # Reload from file to ensure latest
-        print(f"[GET] Current streak count: {streak_count}")
+        # Load latest data from file
+        streak_data = load_streak()
+        streak_count = streak_data['streak']
+        last_check_in = streak_data['last_check_in']
+        
+        print(f"[GET] Current streak count: {streak_count}, Last check-in: {last_check_in}")
         return jsonify({
             "streak": {
                 "current": streak_count,
+                "lastCheckIn": last_check_in,
                 "status": "success",
                 "error": None
             }
@@ -559,6 +580,7 @@ def get_streak():
         return jsonify({
             "streak": {
                 "current": streak_count,
+                "lastCheckIn": last_check_in,
                 "status": "error",
                 "error": str(e)
             }
@@ -566,7 +588,7 @@ def get_streak():
 
 @app.route('/reset_streak', methods=['POST', 'OPTIONS'])
 def reset_streak():
-    global streak_count
+    global streak_count, last_check_in
     if request.method == "OPTIONS":
         response = jsonify({"message": "OPTIONS request received"})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -577,11 +599,16 @@ def reset_streak():
     try:
         print(f"[RESET] Current streak before reset: {streak_count}")
         streak_count = 0
-        save_streak(streak_count)
+        last_check_in = None
+        save_streak({
+            'streak': streak_count,
+            'last_check_in': last_check_in
+        })
         print(f"[RESET] Streak reset to: {streak_count}")
         return jsonify({
             "streak": {
                 "current": streak_count,
+                "lastCheckIn": last_check_in,
                 "status": "success",
                 "error": None
             }
@@ -591,6 +618,7 @@ def reset_streak():
         return jsonify({
             "streak": {
                 "current": streak_count,
+                "lastCheckIn": last_check_in,
                 "status": "error",
                 "error": str(e)
             }
