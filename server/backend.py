@@ -200,12 +200,8 @@ def analyze_garmin_data():
         - Daily Active Time: {suggested_time} minutes
         - Daily Calories: {suggested_calories} calories
 
-        Please provide:
-        1. A concise analysis of their fitness level based on these 2-week averages
-        2. Brief explanations for each suggested daily goal, specifically why these targets are appropriate based on their average performance
-        3. Format the response as:
-           - First paragraph: Overall analysis of 2-week performance
-           - Three separate explanations, one for each goal, starting with "Distance Goal:", "Time Goal:", and "Calories Goal:"
+        In a short and concise paragraph, explain how the data collected supports each of the recommendations.
+    
         """
 
         # Get AI analysis
