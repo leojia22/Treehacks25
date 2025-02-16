@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { initializeStreak, checkAndUpdateStreak, updateDailyStreak } from '../store/fitnessSlice';
@@ -33,24 +33,58 @@ const Homepage = () => {
         return Math.round((goal.current / goal.value) * 100);
     };
 
+    const [suggestedGoals, setSuggestedGoals] = useState(null);
+
+    const handleAnalysisComplete = (data) => {
+        if (data.suggested_goals) {
+            const formatted = [
+                {
+                    title: 'Distance',
+                    current: '0.0',
+                    target: data.suggested_goals.distance.value,
+                    unit: data.suggested_goals.distance.unit,
+                    icon: '🏃‍♂️'
+                },
+                {
+                    title: 'Time',
+                    current: '0',
+                    target: data.suggested_goals.time.value,
+                    unit: data.suggested_goals.time.unit,
+                    icon: '⏱️'
+                },
+                {
+                    title: 'Calories',
+                    current: '0',
+                    target: data.suggested_goals.calories.value,
+                    unit: data.suggested_goals.calories.unit,
+                    icon: '🔥'
+                }
+            ];
+            setSuggestedGoals(formatted);
+        }
+    };
+
     const formattedGoals = [
         {
             title: "Distance",
             target: `${goals.distance.value} ${goals.distance.unit}`,
             current: `${goals.distance.current} ${goals.distance.unit}`,
-            progress: calculateProgress(goals.distance)
+            progress: calculateProgress(goals.distance),
+            icon: '🏃‍♂️'
         },
         {
             title: "Time",
             target: `${goals.time.value} ${goals.time.unit}`,
             current: `${goals.time.current} ${goals.time.unit}`,
-            progress: calculateProgress(goals.time)
+            progress: calculateProgress(goals.time),
+            icon: '⏱️'
         },
         {
             title: "Calories",
             target: `${goals.calories.value} ${goals.calories.unit}`,
             current: `${goals.calories.current} ${goals.calories.unit}`,
-            progress: calculateProgress(goals.calories)
+            progress: calculateProgress(goals.calories),
+            icon: '🔥'
         }
     ];
 
@@ -149,15 +183,37 @@ const Homepage = () => {
                                         style={{ width: `${Math.min(goal.progress, 100)}%` }}
                                     />
                                 </div>
-                                <div className={`goal-progress ${goal.progress < 50 ? 'behind' : ''}`}>
-                                    {goal.progress}% of {goal.target}
-                                </div>
+                                <div className="goal-target">Target: {goal.target}</div>
                             </div>
                         ))}
                     </div>
+
+                    {suggestedGoals && (
+                        <>
+                            <h2 className="section-title">AI Suggested Goals</h2>
+                            <div className="goals-grid">
+                                {suggestedGoals.map((goal, index) => (
+                                    <div key={index} className="goal-card suggested">
+                                        <div className="goal-header">
+                                            <span className="goal-icon">{goal.icon}</span>
+                                            <div className="goal-title">{goal.title}</div>
+                                        </div>
+                                        <div className="goal-value">{goal.current}</div>
+                                        <div className="progress-bar-container">
+                                            <div 
+                                                className="progress-bar"
+                                                style={{ width: `${Math.min((goal.current / goal.target) * 100, 100)}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="goal-target">Target: {goal.target} {goal.unit}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </section>
 
-                <GarminAnalysis />
+                <GarminAnalysis handleAnalysisComplete={handleAnalysisComplete} />
                 <SleepAnalysis />
                 <BodyComposition />
 

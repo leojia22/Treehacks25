@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from terra.base_client import Terra
@@ -162,19 +163,18 @@ def analyze_garmin_data():
         
         # Prepare analysis prompt
         analysis_prompt = f"""
-        As a fitness expert, analyze this user's activity data:
-        
+        Based on the following Garmin fitness data:
         Steps: {steps}
         Calories Burned: {calories}
         Distance: {distance:.1f} km
         Activity Level: {activity_level}
         
-        Please provide:
-        1. Overall activity assessment
-        2. Specific recommendations for improvement
-        3. Health insights based on these metrics
-        
         Give recommendations and insights based on this data. Give both as a neat, concise, and presentable summary paragraph.
+        Also, suggest specific daily goals:
+        - Daily distance target in km
+        - Active time in minutes
+        - Calories to burn
+        Make these goals realistic and based on the user's current performance.
         """
 
         # Get AI analysis
@@ -188,23 +188,34 @@ def analyze_garmin_data():
         )
 
         # Get the content and ensure it's clean text
-        ai_response = response.choices[0].message.content.strip()
+        analysis = response.choices[0].message.content.strip()
         
-        # Return formatted response
+        # Extract suggested goals using regex
+        distance_match = re.search(r'(\d+(?:\.\d+)?)\s*km', analysis.lower())
+        time_match = re.search(r'(\d+)\s*minutes?', analysis.lower())
+        calories_match = re.search(r'(\d+)\s*calories?', analysis.lower())
+        
+        suggested_goals = {
+            "distance": {"value": float(distance_match.group(1)) if distance_match else 5.0, "unit": "km"},
+            "time": {"value": int(time_match.group(1)) if time_match else 30, "unit": "min"},
+            "calories": {"value": int(calories_match.group(1)) if calories_match else 300, "unit": "cal"}
+        }
+        
         return jsonify({
-            "recommendation": "Based on your activity data: " + ai_response,
+            "status": "success",
+            "analysis": analysis,
             "insights": [
                 f"Activity Level: {activity_level}",
                 f"Daily Steps: {steps:,}",
                 f"Calories Burned: {calories:,} kcal",
                 f"Distance: {distance:.1f} km"
-            ]
+            ],
+            "suggested_goals": suggested_goals
         })
 
     except Exception as e:
-        app.logger.error(f"Error analyzing Garmin data: {str(e)}")
         return jsonify({
-            "error": "Failed to analyze Garmin data",
+            "status": "error",
             "message": str(e)
         }), 500
 

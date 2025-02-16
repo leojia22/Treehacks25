@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './GarminAnalysis.css';
 
-const GarminAnalysis = () => {
+const GarminAnalysis = ({ handleAnalysisComplete }) => {
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -19,16 +19,14 @@ const GarminAnalysis = () => {
             });
             
             if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.message || 'Failed to analyze Garmin data');
+                throw new Error('Failed to analyze Garmin data');
             }
             
             const data = await response.json();
-            if (!data || (!data.recommendation && !data.insights)) {
-                throw new Error('Invalid response format from server');
-            }
-            
             setAnalysis(data);
+            if (handleAnalysisComplete) {
+                handleAnalysisComplete(data);
+            }
         } catch (err) {
             console.error('Error analyzing Garmin data:', err);
             setError(err.message);
@@ -60,7 +58,7 @@ const GarminAnalysis = () => {
                 <div className="analysis-results">
                     <div className="analysis-card">
                         <h3>AI Recommendations</h3>
-                        <p>{analysis.recommendation}</p>
+                        <p>{analysis.analysis}</p>
                     </div>
                     
                     {analysis.insights && (
