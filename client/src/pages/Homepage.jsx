@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { initializeStreak, checkAndUpdateStreak, updateDailyStreak } from '../store/fitnessSlice';
+import { 
+    initializeStreak, 
+    checkAndUpdateStreak, 
+    updateDailyStreak,
+    fetchGoals 
+} from '../store/fitnessSlice';
 import { authService } from '../services/firebase';
 import './Homepage.css';
 import GarminAnalysis from '../components/GarminAnalysis';
@@ -12,25 +17,75 @@ const Homepage = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const { goals } = useSelector((state) => state.fitness);
-    const { current: streakCount, status: streakStatus, error: streakError } = 
-        useSelector((state) => state.fitness.streak);
-    const userId = 'current-user-id'; // Replace with actual user ID from auth
+    const streak = useSelector((state) => state.fitness.streak);
+    const streakCount = streak.current || 0;
+
+    const [currentMetrics, setCurrentMetrics] = useState({
+        distance: 0,
+        active_time: 0,
+        calories: 0
+    });
 
     useEffect(() => {
-        // Initialize and check streak when component mounts
-        dispatch(initializeStreak(userId));
-        dispatch(checkAndUpdateStreak(userId));
+        // Initialize streak when component mounts
+        dispatch(initializeStreak());
+        dispatch(fetchGoals());
 
-        // Check streak every hour
-        const intervalId = setInterval(() => {
-            dispatch(checkAndUpdateStreak(userId));
-        }, 3600000);
+        // Check and update streak every minute
+        const streakInterval = setInterval(() => {
+            dispatch(checkAndUpdateStreak());
+        }, 60000);
 
-        return () => clearInterval(intervalId);
-    }, [dispatch, userId]);
+        // Fetch current values every 2 seconds
+        const fetchCurrentValues = async () => {
+            try {
+                const response = await fetch('http://localhost:5002/get_goals');
+                const data = await response.json();
+                if (data.status === 'success' && data.goals) {
+                    dispatch({ 
+                        type: 'fitness/updateCurrentValues', 
+                        payload: {
+                            distance: data.goals.distance?.current || 0,
+                            time: data.goals.time?.current || 0,
+                            calories: data.goals.calories?.current || 0
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching current values:', error);
+            }
+        };
+
+        const valuesInterval = setInterval(fetchCurrentValues, 2000);
+
+        // Cleanup intervals
+        return () => {
+            clearInterval(streakInterval);
+            clearInterval(valuesInterval);
+        };
+    }, [dispatch]);
+
+    // Update goals when metrics change
+    useEffect(() => {
+        const updatedGoals = { ...goals };
+        if (currentMetrics.distance) updatedGoals.distance = { ...goals.distance, current: currentMetrics.distance };
+        if (currentMetrics.active_time) updatedGoals.time = { ...goals.time, current: currentMetrics.active_time };
+        if (currentMetrics.calories) updatedGoals.calories = { ...goals.calories, current: currentMetrics.calories };
+        dispatch({ type: 'fitness/updateGoals', payload: updatedGoals });
+    }, [currentMetrics, dispatch]);
+
+    const handleUpdateStreak = async () => {
+        try {
+            await dispatch(updateDailyStreak()).unwrap();
+        } catch (error) {
+            console.error('Failed to update streak:', error);
+        }
+    };
 
     const calculateProgress = (goal) => {
-        return Math.round((goal.current / goal.value) * 100);
+        if (!goal.value) return 0;
+        const progress = (goal.current / goal.value) * 100;
+        return Math.min(Math.max(progress, 0), 100); // Clamp between 0 and 100
     };
 
     const [suggestedGoals, setSuggestedGoals] = useState(null);
@@ -70,23 +125,23 @@ const Homepage = () => {
     const formattedGoals = [
         {
             title: "Distance",
-            target: `${goals.distance.value} ${goals.distance.unit}`,
-            current: `${goals.distance.current} ${goals.distance.unit}`,
-            progress: calculateProgress(goals.distance),
-            icon: '🏃‍♂️'
+            target: `${goals.distance?.value || 0} ${goals.distance?.unit || 'miles'}`,
+            current: `${goals.distance?.current || 0} ${goals.distance?.unit || 'miles'}`,
+            progress: calculateProgress(goals.distance || { value: 0, current: 0 }),
+            icon: '🏃'
         },
         {
             title: "Time",
-            target: `${goals.time.value} ${goals.time.unit}`,
-            current: `${goals.time.current} ${goals.time.unit}`,
-            progress: calculateProgress(goals.time),
+            target: `${goals.time?.value || 0} ${goals.time?.unit || 'mins'}`,
+            current: `${goals.time?.current || 0} ${goals.time?.unit || 'mins'}`,
+            progress: calculateProgress(goals.time || { value: 0, current: 0 }),
             icon: '⏱️'
         },
         {
             title: "Calories",
-            target: `${goals.calories.value} ${goals.calories.unit}`,
-            current: `${goals.calories.current} ${goals.calories.unit}`,
-            progress: calculateProgress(goals.calories),
+            target: `${goals.calories?.value || 0} ${goals.calories?.unit || 'cal'}`,
+            current: `${goals.calories?.current || 0} ${goals.calories?.unit || 'cal'}`,
+            progress: calculateProgress(goals.calories || { value: 0, current: 0 }),
             icon: '🔥'
         }
     ];
@@ -95,9 +150,9 @@ const Homepage = () => {
 
     useEffect(() => {
         if (allGoalsCompleted) {
-            dispatch(updateDailyStreak(userId));
+            handleUpdateStreak();
         }
-    }, [allGoalsCompleted, dispatch, userId]);
+    }, [allGoalsCompleted]);
 
     const handleLogout = async () => {
         try {
@@ -157,10 +212,10 @@ const Homepage = () => {
             <div className="content">
                 <div className="streak-section">
                     <div className="streak-card">
-                        {streakStatus === 'loading' ? (
+                        {streak.status === 'loading' ? (
                             <div className="streak-loading">Loading streak...</div>
-                        ) : streakStatus === 'failed' ? (
-                            <div className="streak-error">Error: {streakError}</div>
+                        ) : streak.status === 'failed' ? (
+                            <div className="streak-error">Error: {streak.error}</div>
                         ) : (
                             <>
                                 <div className="streak-number">{streakCount}</div>

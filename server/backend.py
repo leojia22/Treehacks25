@@ -1,8 +1,8 @@
 import logging
 import os
 import re
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify, make_response
+from flask_cors import CORS, cross_origin
 from terra.base_client import Terra
 import datetime
 import requests
@@ -489,6 +489,217 @@ def get_bodyfat_category(bf_percentage):
         return "average"
     else:
         return "above average"
+
+# Global variable to store streak count
+streak_count = 0
+last_check_in = None
+
+@app.route('/get_streak', methods=['GET'])
+def get_streak():
+    global streak_count, last_check_in
+    try:
+        print(f"[GET] Current streak count: {streak_count}, Last check-in: {last_check_in}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "lastCheckIn": last_check_in,
+                "status": "success",
+                "error": None
+            }
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Failed to get streak: {str(e)}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "lastCheckIn": last_check_in,
+                "status": "error",
+                "error": str(e)
+            }
+        }), 500
+
+@app.route('/update_streak', methods=['POST', 'OPTIONS'])
+def update_streak():
+    global streak_count, last_check_in
+    if request.method == "OPTIONS":
+        response = jsonify({"message": "OPTIONS request received"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+
+    try:
+        current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+        
+        # Increment streak and update last check-in
+        print(f"[UPDATE] Current streak before increment: {streak_count}")
+        streak_count += 1
+        last_check_in = current_date
+        print(f"[UPDATE] New streak count: {streak_count}, Last check-in: {last_check_in}")
+        
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "lastCheckIn": last_check_in,
+                "status": "success",
+                "error": None
+            }
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Failed to update streak: {str(e)}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "lastCheckIn": last_check_in,
+                "status": "error",
+                "error": str(e)
+            }
+        }), 500
+
+@app.route('/reset_streak', methods=['POST', 'OPTIONS'])
+def reset_streak():
+    global streak_count, last_check_in
+    if request.method == "OPTIONS":
+        response = jsonify({"message": "OPTIONS request received"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+
+    try:
+        print(f"[RESET] Current streak before reset: {streak_count}")
+        streak_count = 0
+        last_check_in = None
+        print(f"[RESET] Streak reset to: {streak_count}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "lastCheckIn": last_check_in,
+                "status": "success",
+                "error": None
+            }
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Failed to reset streak: {str(e)}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "lastCheckIn": last_check_in,
+                "status": "error",
+                "error": str(e)
+            }
+        }), 500
+
+@app.route('/update_metrics', methods=['POST', 'OPTIONS'])
+@cross_origin()
+def update_metrics():
+    if request.method == "OPTIONS":
+        return _build_cors_preflight_response()
+
+    try:
+        data = request.get_json()
+        metrics = data.get('metrics')
+        
+        if not metrics:
+            return jsonify({
+                "status": "error",
+                "message": "Missing metrics data"
+            }), 400
+
+        # Load current goals
+        with open('goals.json', 'r') as f:
+            goals = json.load(f)
+
+        # Update current values based on metrics
+        if 'distance' in metrics:
+            goals['distance']['current'] = float(metrics['distance'])
+        if 'active_time' in metrics:
+            goals['time']['current'] = int(metrics['active_time'])
+        if 'calories' in metrics:
+            goals['calories']['current'] = int(metrics['calories'])
+
+        # Save updated goals
+        with open('goals.json', 'w') as f:
+            json.dump(goals, f)
+
+        print(f"[UPDATE] Updated goals with metrics: {goals}")
+
+        response = jsonify({
+            "status": "success",
+            "goals": goals
+        })
+        return _corsify_actual_response(response)
+
+    except Exception as e:
+        print(f"Error updating metrics: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/update_goals', methods=['POST', 'OPTIONS'])
+def update_goals():
+    if request.method == "OPTIONS":
+        return _build_cors_preflight_response()
+
+    try:
+        data = request.get_json()
+        print(f"[DEBUG] Received goals update request with data: {data}")
+        
+        if not data:
+            return jsonify({
+                "status": "error",
+                "message": "Missing goals data"
+            }), 400
+
+        # Save updated goals
+        with open('goals.json', 'w') as f:
+            json.dump(data, f)
+
+        print(f"[DEBUG] Updated goals.json with: {data}")
+
+        # Read back the goals to verify
+        with open('goals.json', 'r') as f:
+            saved_goals = json.load(f)
+        print(f"[DEBUG] Verified saved goals: {saved_goals}")
+
+        return jsonify({
+            "status": "success",
+            "goals": saved_goals
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Error updating goals: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/get_goals', methods=['GET'])
+def get_goals():
+    try:
+        with open('goals.json', 'r') as f:
+            goals = json.load(f)
+        return jsonify({
+            "status": "success",
+            "goals": goals
+        }), 200
+    except Exception as e:
+        print(f"Error getting goals: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+def _build_cors_preflight_response():
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
+    return response
+
+def _corsify_actual_response(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True, port=5002)

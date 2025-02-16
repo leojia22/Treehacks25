@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateGoals, updateFitnessLevel } from '../store/fitnessSlice';
+import { updateGoals, updateFitnessLevel, saveGoals, fetchGoals } from '../store/fitnessSlice';
 import './EditPlan.css';
 
 const EditPlan = () => {
@@ -34,19 +34,29 @@ const EditPlan = () => {
     };
 
     const handleGoalChange = (type, value) => {
+        console.log('Changing goal:', type, value); // Debug log
         const updatedGoals = {
             ...goals,
             [type]: {
                 ...goals[type],
-                value: parseFloat(value) || 0
+                value: parseFloat(value) || 0,
+                current: goals[type].current // Preserve current value
             }
         };
+        console.log('Updated goals:', updatedGoals); // Debug log
         dispatch(updateGoals(updatedGoals));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        navigate('/');
+        console.log('Submitting goals:', goals); // Debug log
+        try {
+            await dispatch(saveGoals(goals)).unwrap();
+            await dispatch(fetchGoals()).unwrap(); // Fetch updated goals immediately
+            navigate('/');
+        } catch (error) {
+            console.error('Failed to save goals:', error);
+        }
     };
 
     return (
