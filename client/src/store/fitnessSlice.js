@@ -135,7 +135,12 @@ export const fitnessSlice = createSlice({
       Object.keys(state.goals).forEach(key => {
         state.goals[key].current = 0;
       });
-    }
+    },
+    updateCurrentValues: (state, action) => {
+      if (state.goals.distance) state.goals.distance.current = action.payload.distance;
+      if (state.goals.time) state.goals.time.current = action.payload.time;
+      if (state.goals.calories) state.goals.calories.current = action.payload.calories;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -206,7 +211,8 @@ export const {
   updateGoals, 
   updateFitnessLevel, 
   updateProgress, 
-  resetDailyProgress 
+  resetDailyProgress,
+  updateCurrentValues
 } = fitnessSlice.actions;
 
 // Selectors

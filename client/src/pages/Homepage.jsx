@@ -20,30 +20,59 @@ const Homepage = () => {
     const streak = useSelector((state) => state.fitness.streak);
     const streakCount = streak.current || 0;
 
+    const [currentMetrics, setCurrentMetrics] = useState({
+        distance: 0,
+        active_time: 0,
+        calories: 0
+    });
+
     useEffect(() => {
         // Initialize streak when component mounts
         dispatch(initializeStreak());
-        dispatch(checkAndUpdateStreak());
-
-        // Check streak every hour
-        const streakInterval = setInterval(() => {
-            dispatch(checkAndUpdateStreak());
-        }, 3600000); // every hour
-
-        return () => clearInterval(streakInterval);
-    }, [dispatch]);
-
-    useEffect(() => {
-        // Initial goals fetch
         dispatch(fetchGoals());
 
-        // Check goals every 5 seconds
-        const goalsInterval = setInterval(() => {
-            dispatch(fetchGoals());
-        }, 5000);
+        // Check and update streak every minute
+        const streakInterval = setInterval(() => {
+            dispatch(checkAndUpdateStreak());
+        }, 60000);
 
-        return () => clearInterval(goalsInterval);
+        // Fetch current values every 2 seconds
+        const fetchCurrentValues = async () => {
+            try {
+                const response = await fetch('http://localhost:5002/get_goals');
+                const data = await response.json();
+                if (data.status === 'success' && data.goals) {
+                    dispatch({ 
+                        type: 'fitness/updateCurrentValues', 
+                        payload: {
+                            distance: data.goals.distance?.current || 0,
+                            time: data.goals.time?.current || 0,
+                            calories: data.goals.calories?.current || 0
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching current values:', error);
+            }
+        };
+
+        const valuesInterval = setInterval(fetchCurrentValues, 2000);
+
+        // Cleanup intervals
+        return () => {
+            clearInterval(streakInterval);
+            clearInterval(valuesInterval);
+        };
     }, [dispatch]);
+
+    // Update goals when metrics change
+    useEffect(() => {
+        const updatedGoals = { ...goals };
+        if (currentMetrics.distance) updatedGoals.distance = { ...goals.distance, current: currentMetrics.distance };
+        if (currentMetrics.active_time) updatedGoals.time = { ...goals.time, current: currentMetrics.active_time };
+        if (currentMetrics.calories) updatedGoals.calories = { ...goals.calories, current: currentMetrics.calories };
+        dispatch({ type: 'fitness/updateGoals', payload: updatedGoals });
+    }, [currentMetrics, dispatch]);
 
     const handleUpdateStreak = async () => {
         try {
