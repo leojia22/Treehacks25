@@ -73,18 +73,198 @@ def auth_token():
         print("Error:", str(e))
         return jsonify({"error": str(e)}), 500  # Let Flask-CORS handle CORS headers
 
-# Sample Garmin data
+# Sample Garmin data for 2 weeks
 SAMPLE_GARMIN_DATA = {
-    "data": [{
-        "steps": 8500,
-        "calories_data": {
-            "total_burned_calories": 2100
+    "data": [
+        {
+            "steps": 8500,
+            "calories_data": {"total_burned_calories": 2100},
+            "distance_data": {"distance_meters": 7500},
+            "date": "2025-02-15"
         },
-        "distance_data": {
-            "distance_meters": 7500
+        {
+            "steps": 9200,
+            "calories_data": {"total_burned_calories": 2300},
+            "distance_data": {"distance_meters": 8000},
+            "date": "2025-02-14"
+        },
+        {
+            "steps": 7800,
+            "calories_data": {"total_burned_calories": 1900},
+            "distance_data": {"distance_meters": 7000},
+            "date": "2025-02-13"
+        },
+        {
+            "steps": 10500,
+            "calories_data": {"total_burned_calories": 2500},
+            "distance_data": {"distance_meters": 9000},
+            "date": "2025-02-12"
+        },
+        {
+            "steps": 6500,
+            "calories_data": {"total_burned_calories": 1800},
+            "distance_data": {"distance_meters": 6000},
+            "date": "2025-02-11"
+        },
+        {
+            "steps": 12000,
+            "calories_data": {"total_burned_calories": 2800},
+            "distance_data": {"distance_meters": 10500},
+            "date": "2025-02-10"
+        },
+        {
+            "steps": 8800,
+            "calories_data": {"total_burned_calories": 2200},
+            "distance_data": {"distance_meters": 7800},
+            "date": "2025-02-09"
+        },
+        {
+            "steps": 9500,
+            "calories_data": {"total_burned_calories": 2400},
+            "distance_data": {"distance_meters": 8500},
+            "date": "2025-02-08"
+        },
+        {
+            "steps": 7200,
+            "calories_data": {"total_burned_calories": 1850},
+            "distance_data": {"distance_meters": 6500},
+            "date": "2025-02-07"
+        },
+        {
+            "steps": 11000,
+            "calories_data": {"total_burned_calories": 2600},
+            "distance_data": {"distance_meters": 9500},
+            "date": "2025-02-06"
+        },
+        {
+            "steps": 8300,
+            "calories_data": {"total_burned_calories": 2050},
+            "distance_data": {"distance_meters": 7300},
+            "date": "2025-02-05"
+        },
+        {
+            "steps": 9800,
+            "calories_data": {"total_burned_calories": 2450},
+            "distance_data": {"distance_meters": 8800},
+            "date": "2025-02-04"
+        },
+        {
+            "steps": 7500,
+            "calories_data": {"total_burned_calories": 1950},
+            "distance_data": {"distance_meters": 6800},
+            "date": "2025-02-03"
+        },
+        {
+            "steps": 10800,
+            "calories_data": {"total_burned_calories": 2550},
+            "distance_data": {"distance_meters": 9200},
+            "date": "2025-02-02"
         }
-    }]
+    ]
 }
+
+@app.route('/analyze_garmin_data', methods=['GET'])
+def analyze_garmin_data():
+    try:
+        # Calculate averages from all data points
+        total_days = len(SAMPLE_GARMIN_DATA['data'])
+        avg_steps = sum(day['steps'] for day in SAMPLE_GARMIN_DATA['data']) / total_days
+        avg_calories = sum(day['calories_data']['total_burned_calories'] for day in SAMPLE_GARMIN_DATA['data']) / total_days
+        avg_distance = sum(day['distance_data']['distance_meters'] for day in SAMPLE_GARMIN_DATA['data']) / total_days / 1000  # Convert to km
+        
+        # Calculate min and max values for context
+        min_steps = min(day['steps'] for day in SAMPLE_GARMIN_DATA['data'])
+        max_steps = max(day['steps'] for day in SAMPLE_GARMIN_DATA['data'])
+        min_calories = min(day['calories_data']['total_burned_calories'] for day in SAMPLE_GARMIN_DATA['data'])
+        max_calories = max(day['calories_data']['total_burned_calories'] for day in SAMPLE_GARMIN_DATA['data'])
+        min_distance = min(day['distance_data']['distance_meters'] for day in SAMPLE_GARMIN_DATA['data']) / 1000
+        max_distance = max(day['distance_data']['distance_meters'] for day in SAMPLE_GARMIN_DATA['data']) / 1000
+        
+        activity_level = "Low" if avg_steps < 5000 else "Moderate" if avg_steps < 10000 else "High"
+        
+        # Calculate suggested goals based on averages
+        suggested_distance = round(avg_distance * 1.2, 1)  # 20% increase from average
+        suggested_time = 45 if activity_level == "Low" else 60 if activity_level == "Moderate" else 75
+        suggested_calories = round(avg_calories * 1.15)  # 15% increase from average
+        
+        # Prepare analysis prompt with averages and ranges
+        analysis_prompt = f"""
+        Based on the following 2-week average Garmin fitness data:
+        Average Daily Steps: {avg_steps:.0f} (Range: {min_steps} - {max_steps})
+        Average Daily Calories Burned: {avg_calories:.0f} (Range: {min_calories} - {max_calories})
+        Average Daily Distance: {avg_distance:.1f} km (Range: {min_distance:.1f} - {max_distance:.1f} km)
+        Overall Activity Level: {activity_level}
+        
+        I've calculated the following suggested daily goals based on these 2-week averages:
+        - Daily Distance: {suggested_distance} km
+        - Daily Active Time: {suggested_time} minutes
+        - Daily Calories: {suggested_calories} calories
+
+        Please provide:
+        1. A concise analysis of their fitness level based on these 2-week averages
+        2. Brief explanations for each suggested daily goal, specifically why these targets are appropriate based on their average performance
+        3. Format the response as:
+           - First paragraph: Overall analysis of 2-week performance
+           - Three separate explanations, one for each goal, starting with "Distance Goal:", "Time Goal:", and "Calories Goal:"
+        """
+
+        # Get AI analysis
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a fitness expert providing evidence-based recommendations."},
+                {"role": "user", "content": analysis_prompt}
+            ],
+            temperature=0.7
+        )
+
+        # Get the content and ensure it's clean text
+        analysis = response.choices[0].message.content.strip()
+        
+        # Extract goal explanations using regex
+        distance_explanation = re.search(r'Distance Goal:(.*?)(?=Time Goal:|$)', analysis, re.DOTALL)
+        time_explanation = re.search(r'Time Goal:(.*?)(?=Calories Goal:|$)', analysis, re.DOTALL)
+        calories_explanation = re.search(r'Calories Goal:(.*?)(?=$)', analysis, re.DOTALL)
+        
+        # Create suggested goals with explanations
+        suggested_goals = {
+            "distance": {
+                "value": suggested_distance,
+                "unit": "km",
+                "explanation": distance_explanation.group(1).strip() if distance_explanation else "Goal based on your 2-week average distance."
+            },
+            "time": {
+                "value": suggested_time,
+                "unit": "min",
+                "explanation": time_explanation.group(1).strip() if time_explanation else "Goal based on your activity level over 2 weeks."
+            },
+            "calories": {
+                "value": suggested_calories,
+                "unit": "cal",
+                "explanation": calories_explanation.group(1).strip() if calories_explanation else "Goal based on your 2-week average calorie burn."
+            }
+        }
+        
+        # Extract the overall analysis (everything before "Distance Goal:")
+        overall_analysis = analysis.split("Distance Goal:")[0].strip()
+        
+        return jsonify({
+            "status": "success",
+            "analysis": overall_analysis,
+            "insights": [
+                f"Activity Level: {activity_level}",
+                f"Average Daily Steps: {avg_steps:,.0f} (Range: {min_steps:,} - {max_steps:,})",
+                f"Average Daily Calories: {avg_calories:,.0f} (Range: {min_calories:,} - {max_calories:,})",
+                f"Average Daily Distance: {avg_distance:.1f} km (Range: {min_distance:.1f} - {max_distance:.1f} km)"
+            ],
+            "suggested_goals": suggested_goals
+        })
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 # Sample sleep data
 SAMPLE_SLEEP_DATA = {
@@ -110,114 +290,6 @@ SAMPLE_SLEEP_DATA = {
         }
     }]
 }
-
-# Sample body data
-SAMPLE_BODY_DATA = {
-    "data": [{
-        "measurements_data": {
-            "measurements": [
-                {
-                    "measurement_time": "2025-02-16T04:41:46.102000+00:00",
-                    "BMR": 1322,
-                    "RMR": 877,
-                    "lean_mass_g": 37.19,
-                    "bone_mass_g": 10.11,
-                    "BMI": 16.87,
-                    "weight_kg": 45.31,
-                    "bodyfat_percentage": 19.05,
-                    "water_percentage": 24.38,
-                    "muscle_mass_g": 17.43,
-                    "height_cm": 196.62
-                },
-                {
-                    "measurement_time": "2025-02-16T07:41:46.102000+00:00",
-                    "BMR": 1021,
-                    "RMR": 1200,
-                    "lean_mass_g": 34.86,
-                    "bone_mass_g": 12.87,
-                    "BMI": 39.66,
-                    "weight_kg": 77.74,
-                    "bodyfat_percentage": 74.66,
-                    "water_percentage": 69.28,
-                    "muscle_mass_g": 40.30,
-                    "height_cm": 174.47
-                }
-            ]
-        }
-    }]
-}
-
-@app.route('/analyze_garmin_data', methods=['GET'])
-def analyze_garmin_data():
-    try:
-        # Get data from sample
-        data = SAMPLE_GARMIN_DATA['data'][0]
-        
-        # Calculate metrics
-        steps = data.get('steps', 0)
-        calories = data.get('calories_data', {}).get('total_burned_calories', 0)
-        distance = data.get('distance_data', {}).get('distance_meters', 0) / 1000  # Convert to km
-        
-        # Determine activity level based on steps
-        activity_level = "Low" if steps < 5000 else "Moderate" if steps < 10000 else "High"
-        
-        # Prepare analysis prompt
-        analysis_prompt = f"""
-        Based on the following Garmin fitness data:
-        Steps: {steps}
-        Calories Burned: {calories}
-        Distance: {distance:.1f} km
-        Activity Level: {activity_level}
-        
-        Give recommendations and insights based on this data. Give both as a neat, concise, and presentable summary paragraph.
-        Also, suggest specific daily goals:
-        - Daily distance target in km
-        - Active time in minutes
-        - Calories to burn
-        Make these goals realistic and based on the user's current performance.
-        """
-
-        # Get AI analysis
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a fitness expert providing evidence-based recommendations."},
-                {"role": "user", "content": analysis_prompt}
-            ],
-            temperature=0.7
-        )
-
-        # Get the content and ensure it's clean text
-        analysis = response.choices[0].message.content.strip()
-        
-        # Extract suggested goals using regex
-        distance_match = re.search(r'(\d+(?:\.\d+)?)\s*km', analysis.lower())
-        time_match = re.search(r'(\d+)\s*minutes?', analysis.lower())
-        calories_match = re.search(r'(\d+)\s*calories?', analysis.lower())
-        
-        suggested_goals = {
-            "distance": {"value": float(distance_match.group(1)) if distance_match else 5.0, "unit": "km"},
-            "time": {"value": int(time_match.group(1)) if time_match else 30, "unit": "min"},
-            "calories": {"value": int(calories_match.group(1)) if calories_match else 300, "unit": "cal"}
-        }
-        
-        return jsonify({
-            "status": "success",
-            "analysis": analysis,
-            "insights": [
-                f"Activity Level: {activity_level}",
-                f"Daily Steps: {steps:,}",
-                f"Calories Burned: {calories:,} kcal",
-                f"Distance: {distance:.1f} km"
-            ],
-            "suggested_goals": suggested_goals
-        })
-
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
 
 @app.route('/analyze_sleep_patterns', methods=['GET'])
 def analyze_sleep_patterns():
@@ -283,6 +355,42 @@ def analyze_sleep_patterns():
             "error": "Failed to analyze sleep data",
             "message": str(e)
         }), 500
+
+# Sample body data
+SAMPLE_BODY_DATA = {
+    "data": [{
+        "measurements_data": {
+            "measurements": [
+                {
+                    "measurement_time": "2025-02-16T04:41:46.102000+00:00",
+                    "BMR": 1322,
+                    "RMR": 877,
+                    "lean_mass_g": 37.19,
+                    "bone_mass_g": 10.11,
+                    "BMI": 16.87,
+                    "weight_kg": 45.31,
+                    "bodyfat_percentage": 19.05,
+                    "water_percentage": 24.38,
+                    "muscle_mass_g": 17.43,
+                    "height_cm": 196.62
+                },
+                {
+                    "measurement_time": "2025-02-16T07:41:46.102000+00:00",
+                    "BMR": 1021,
+                    "RMR": 1200,
+                    "lean_mass_g": 34.86,
+                    "bone_mass_g": 12.87,
+                    "BMI": 39.66,
+                    "weight_kg": 77.74,
+                    "bodyfat_percentage": 74.66,
+                    "water_percentage": 69.28,
+                    "muscle_mass_g": 40.30,
+                    "height_cm": 174.47
+                }
+            ]
+        }
+    }]
+}
 
 @app.route('/analyze_body_composition', methods=['GET'])
 def analyze_body_composition():

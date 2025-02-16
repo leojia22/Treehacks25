@@ -43,21 +43,24 @@ const Homepage = () => {
                     current: '0.0',
                     target: data.suggested_goals.distance.value,
                     unit: data.suggested_goals.distance.unit,
-                    icon: '🏃‍♂️'
+                    icon: '🏃‍♂️',
+                    explanation: 'Aim to cover a certain distance to improve cardiovascular health and burn calories.'
                 },
                 {
                     title: 'Time',
                     current: '0',
                     target: data.suggested_goals.time.value,
                     unit: data.suggested_goals.time.unit,
-                    icon: '⏱️'
+                    icon: '⏱️',
+                    explanation: 'Spend a certain amount of time engaging in physical activity to boost mood and energy levels.'
                 },
                 {
                     title: 'Calories',
                     current: '0',
                     target: data.suggested_goals.calories.value,
                     unit: data.suggested_goals.calories.unit,
-                    icon: '🔥'
+                    icon: '🔥',
+                    explanation: 'Burn a certain number of calories to support weight loss and weight management goals.'
                 }
             ];
             setSuggestedGoals(formatted);
@@ -206,6 +209,7 @@ const Homepage = () => {
                                             ></div>
                                         </div>
                                         <div className="goal-target">Target: {goal.target} {goal.unit}</div>
+                                        <div className="goal-explanation">{goal.explanation}</div>
                                     </div>
                                 ))}
                             </div>
