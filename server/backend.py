@@ -9,14 +9,15 @@ import os
 
 import datetime
 import requests
+from openai import OpenAI
 
 logging.basicConfig(level=logging.INFO)
 
 _LOGGER = logging.getLogger("app")
 app = flask.Flask(__name__)
 
-# Remove the duplicate Flask app initialization
-# Copyapp = flask.Flask(__name__)  <- Remove this line
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Use only Flask-CORS for handling CORS
 CORS(app, resources={
@@ -27,11 +28,6 @@ CORS(app, resources={
         "expose_headers": "*"
     }
 })
-
-# Remove the after_request decorator as CORS(app) handles everything
-# @app.after_request
-# def after_request(response):
-#     ... remove this entire function
 
 dev_id = '4actk-fitstreak-testing-wfRE9vBU8U'
 api_key = 'A-vwB8CGUoNrQvbP0SUM-dD4mABGFq7Z'
@@ -68,5 +64,73 @@ def auth_token():
     except Exception as e:
         print("Error:", str(e))
         return jsonify({"error": str(e)}), 500  # Let Flask-CORS handle CORS headers
+
+@app.route('/analyze_garmin_data', methods=['POST'])
+def analyze_garmin_data():
+    try:
+        # Get user_id from request
+        user_id = request.json.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'user_id is required'}), 400
+
+        # Get the Terra client
+        terra = Terra(api_key=os.getenv('TERRA_API_KEY'))
+        
+        # Fetch last 24 hours of Garmin data
+        end_date = datetime.datetime.now()
+        start_date = end_date - datetime.timedelta(days=1)
+        
+        # Get daily data from Terra
+        daily_data = terra.get_daily_data(
+            user_id=user_id,
+            start_date=start_date.isoformat(),
+            end_date=end_date.isoformat(),
+            provider="GARMIN"
+        )
+
+        # Format the data for AI analysis
+        formatted_data = {
+            'steps': daily_data.get('steps', 0),
+            'distance': daily_data.get('distance', 0),
+            'calories': daily_data.get('calories', 0),
+            'heart_rate': daily_data.get('heart_rate', {}),
+            'sleep': daily_data.get('sleep', {})
+        }
+
+        # Create prompt for AI
+        prompt = f"""Analyze the following Garmin fitness data and provide insights:
+        Steps: {formatted_data['steps']}
+        Distance: {formatted_data['distance']} meters
+        Calories: {formatted_data['calories']}
+        Heart Rate Data: {formatted_data['heart_rate']}
+        Sleep Data: {formatted_data['sleep']}
+        
+        Please provide:
+        1. Overall health assessment
+        2. Recommendations for improvement
+        3. Any concerning patterns
+        """
+
+        # Get AI analysis
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a fitness and health analysis expert."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        # Extract the AI's response
+        analysis = response.choices[0].message.content
+
+        return jsonify({
+            'raw_data': formatted_data,
+            'analysis': analysis
+        })
+
+    except Exception as e:
+        _LOGGER.error(f"Error analyzing Garmin data: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5002)
