@@ -29,6 +29,14 @@ const Homepage = () => {
         return () => clearInterval(intervalId);
     }, [dispatch, userId]);
 
+    const handleUpdateStreak = async () => {
+        try {
+            await dispatch(updateDailyStreak(userId)).unwrap();
+        } catch (error) {
+            console.error('Failed to update streak:', error);
+        }
+    };
+
     const calculateProgress = (goal) => {
         return Math.round((goal.current / goal.value) * 100);
     };
@@ -95,9 +103,9 @@ const Homepage = () => {
 
     useEffect(() => {
         if (allGoalsCompleted) {
-            dispatch(updateDailyStreak(userId));
+            handleUpdateStreak();
         }
-    }, [allGoalsCompleted, dispatch, userId]);
+    }, [allGoalsCompleted]);
 
     const handleLogout = async () => {
         try {

@@ -490,5 +490,111 @@ def get_bodyfat_category(bf_percentage):
     else:
         return "above average"
 
+# Global variable to store streak count and file path
+STREAK_FILE = 'streak.json'
+
+def load_streak():
+    try:
+        with open(STREAK_FILE, 'r') as f:
+            data = json.load(f)
+            return data.get('streak', 0)
+    except FileNotFoundError:
+        return 0
+
+def save_streak(count):
+    with open(STREAK_FILE, 'w') as f:
+        json.dump({'streak': count}, f)
+
+# Initialize streak from file
+streak_count = load_streak()
+print(f"Initial streak count loaded: {streak_count}")
+
+@app.route('/update_streak', methods=['POST', 'OPTIONS'])
+def update_streak():
+    global streak_count
+    if request.method == "OPTIONS":
+        response = jsonify({"message": "OPTIONS request received"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+
+    try:
+        print(f"[UPDATE] Current streak before increment: {streak_count}")
+        streak_count += 1
+        save_streak(streak_count)
+        print(f"[UPDATE] New streak count saved: {streak_count}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "status": "success",
+                "error": None
+            }
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Failed to update streak: {str(e)}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "status": "error",
+                "error": str(e)
+            }
+        }), 500
+
+@app.route('/get_streak', methods=['GET'])
+def get_streak():
+    global streak_count
+    try:
+        streak_count = load_streak()  # Reload from file to ensure latest
+        print(f"[GET] Current streak count: {streak_count}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "status": "success",
+                "error": None
+            }
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Failed to get streak: {str(e)}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "status": "error",
+                "error": str(e)
+            }
+        }), 500
+
+@app.route('/reset_streak', methods=['POST', 'OPTIONS'])
+def reset_streak():
+    global streak_count
+    if request.method == "OPTIONS":
+        response = jsonify({"message": "OPTIONS request received"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+
+    try:
+        print(f"[RESET] Current streak before reset: {streak_count}")
+        streak_count = 0
+        save_streak(streak_count)
+        print(f"[RESET] Streak reset to: {streak_count}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "status": "success",
+                "error": None
+            }
+        }), 200
+    except Exception as e:
+        print(f"[ERROR] Failed to reset streak: {str(e)}")
+        return jsonify({
+            "streak": {
+                "current": streak_count,
+                "status": "error",
+                "error": str(e)
+            }
+        }), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5002)

@@ -168,102 +168,6 @@ export const authService = {
     }
 };
 
-export const streakService = {
-    async initializeUserStreak(userId) {
-        console.log('Starting initializeUserStreak with userId:', userId);
-        
-        if (!userId) {
-            console.error('No userId provided to initializeUserStreak');
-            throw new Error('User ID is required');
-        }
-
-        // Verify authentication state
-        const currentUser = auth.currentUser;
-        console.log('Current authenticated user:', currentUser?.uid);
-        
-        if (!currentUser) {
-            console.error('No authenticated user found');
-            throw new Error('User must be authenticated');
-        }
-
-        if (currentUser.uid !== userId) {
-            console.error('User ID mismatch:', {
-                providedId: userId,
-                currentUserId: currentUser.uid
-            });
-            throw new Error('User ID mismatch');
-        }
-
-        try {
-            const userRef = doc(db, 'users', userId);
-            console.log('Attempting to access document at:', `users/${userId}`);
-            
-            const userDoc = await getDoc(userRef);
-            console.log('Document exists?', userDoc.exists());
-
-            if (!userDoc.exists()) {
-                console.log('Creating new user document...');
-                const userData = {
-                    streak: 1,
-                    lastCheckIn: null,
-                    goals: {
-                        distance: { value: 2.0, unit: 'miles', current: 0 },
-                        time: { value: 20, unit: 'mins', current: 0 },
-                        calories: { value: 200, unit: 'cal', current: 0 }
-                    }
-                };
-
-                try {
-                    await setDoc(userRef, userData);
-                    console.log('Successfully created user document');
-                } catch (writeError) {
-                    console.error('Error writing document:', {
-                        code: writeError.code,
-                        message: writeError.message,
-                        details: writeError
-                    });
-                    throw writeError;
-                }
-            }
-
-            return { streak: 1, lastCheckIn: null };
-        } catch (error) {
-            console.error('Error in initializeUserStreak:', {
-                code: error.code,
-                message: error.message,
-                details: error
-            });
-            throw error; // Throw the original error to preserve the error details
-        }
-    },
-
-    async getStreak(userId) {
-        if (!userId) {
-            console.error('No userId provided to getStreak');
-            throw new Error('User ID is required');
-        }
-
-        try {
-            const userRef = doc(db, 'users', userId);
-            const userDoc = await getDoc(userRef);
-
-            if (!userDoc.exists()) {
-                console.error('User document not found');
-                throw new Error('User document not found');
-            }
-
-            const userData = userDoc.data();
-            return {
-                streak: userData.streak || 0,
-                lastCheckIn: userData.lastCheckIn
-            };
-        } catch (error) {
-            console.error('Error getting streak:', error);
-            throw error;
-        }
-    }
-};
-
 import axios from "axios";
 
 const BACKEND_URL = "http://localhost:5002";
@@ -296,4 +200,59 @@ export const terraService = {
         }
     }
 };
+
+export const streakService = {
+    initializeUserStreak: async (userId) => {
+        try {
+            const response = await axios.get(`${BACKEND_URL}/get_streak`);
+            return {
+                streak: response.data.streak.current,
+                lastCheckIn: new Date()
+            };
+        } catch (error) {
+            console.error('Error initializing streak:', error);
+            throw error;
+        }
+    },
+
+    getStreak: async (userId) => {
+        try {
+            const response = await axios.get(`${BACKEND_URL}/get_streak`);
+            return {
+                streak: response.data.streak.current,
+                lastCheckIn: new Date()
+            };
+        } catch (error) {
+            console.error('Error getting streak:', error);
+            throw error;
+        }
+    },
+
+    updateStreak: async (userId) => {
+        try {
+            const response = await axios.post(`${BACKEND_URL}/update_streak`);
+            return {
+                streak: response.data.streak.current,
+                lastCheckIn: new Date()
+            };
+        } catch (error) {
+            console.error('Error updating streak:', error);
+            throw error;
+        }
+    },
+
+    resetStreak: async (userId) => {
+        try {
+            const response = await axios.post(`${BACKEND_URL}/reset_streak`);
+            return {
+                streak: response.data.streak.current,
+                lastCheckIn: new Date()
+            };
+        } catch (error) {
+            console.error('Error resetting streak:', error);
+            throw error;
+        }
+    }
+};
+
 export { auth, db };
