@@ -4,6 +4,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { initializeStreak, checkAndUpdateStreak, updateDailyStreak } from '../store/fitnessSlice';
 import { authService } from '../services/firebase';
 import './Homepage.css';
+import GarminAnalysis from '../components/GarminAnalysis';
+import SleepAnalysis from '../components/SleepAnalysis';
+import BodyComposition from '../components/BodyComposition';
 
 const Homepage = () => {
     const navigate = useNavigate();
@@ -114,49 +117,57 @@ const Homepage = () => {
                 </div>
             </header>
 
-            <div className="streak-card">
-                {streakStatus === 'loading' ? (
-                    <div className="streak-loading">Loading streak...</div>
-                ) : streakStatus === 'failed' ? (
-                    <div className="streak-error">Error: {streakError}</div>
-                ) : (
-                    <>
-                        <div className="streak-number">{streakCount}</div>
-                        <div className="streak-label">Day Streak</div>
-                    </>
+            <div className="content">
+                <div className="streak-section">
+                    <div className="streak-card">
+                        {streakStatus === 'loading' ? (
+                            <div className="streak-loading">Loading streak...</div>
+                        ) : streakStatus === 'failed' ? (
+                            <div className="streak-error">Error: {streakError}</div>
+                        ) : (
+                            <>
+                                <div className="streak-number">{streakCount}</div>
+                                <div className="streak-label">Day Streak</div>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                <section className="goals-section">
+                    <h2 className="section-title">Today's Goals</h2>
+                    <div className="goals-grid">
+                        {formattedGoals.map((goal, index) => (
+                            <div key={index} className="goal-card">
+                                <div className="goal-header">
+                                    <span className="goal-icon">{goal.icon}</span>
+                                    <div className="goal-title">{goal.title}</div>
+                                </div>
+                                <div className="goal-value">{goal.current}</div>
+                                <div className="progress-bar-container">
+                                    <div 
+                                        className="progress-bar"
+                                        style={{ width: `${Math.min(goal.progress, 100)}%` }}
+                                    />
+                                </div>
+                                <div className={`goal-progress ${goal.progress < 50 ? 'behind' : ''}`}>
+                                    {goal.progress}% of {goal.target}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <GarminAnalysis />
+                <SleepAnalysis />
+                <BodyComposition />
+
+                {allGoalsCompleted && (
+                    <div className="completion-message">
+                        Congratulations! You've completed all your goals for today. 
+                        Keep up the great work!
+                    </div>
                 )}
             </div>
-
-            <section className="goals-section">
-                <h2 className="section-title">Today's Goals</h2>
-                <div className="goals-grid">
-                    {formattedGoals.map((goal, index) => (
-                        <div key={index} className="goal-card">
-                            <div className="goal-header">
-                                <span className="goal-icon">{goal.icon}</span>
-                                <div className="goal-title">{goal.title}</div>
-                            </div>
-                            <div className="goal-value">{goal.current}</div>
-                            <div className="progress-bar-container">
-                                <div 
-                                    className="progress-bar"
-                                    style={{ width: `${Math.min(goal.progress, 100)}%` }}
-                                />
-                            </div>
-                            <div className={`goal-progress ${goal.progress < 50 ? 'behind' : ''}`}>
-                                {goal.progress}% of {goal.target}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            {allGoalsCompleted && (
-                <div className="completion-message">
-                    Congratulations! You've completed all your goals for today. 
-                    Keep up the great work!
-                </div>
-            )}
         </div>
     );
 };

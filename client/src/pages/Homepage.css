@@ -94,6 +94,16 @@
     height: 18px;
 }
 
+.content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.streak-section {
+    margin-bottom: 32px;
+}
+
 .streak-card {
     background-color: #3b82f6;
     font-family: Arial, sans-serif;

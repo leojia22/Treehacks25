@@ -1,33 +1,38 @@
 import logging
-
-import flask
-from terra.base_client import Terra
-
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
-
+from terra.base_client import Terra
 import datetime
 import requests
-from openai import OpenAI
+import openai
+import json
 
 logging.basicConfig(level=logging.INFO)
 
 _LOGGER = logging.getLogger("app")
-app = flask.Flask(__name__)
+app = Flask(__name__)
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Initialize OpenAI
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # Use only Flask-CORS for handling CORS
 CORS(app, resources={
     r"/*": {
-        "origins": "*",
+        "origins": ["http://localhost:3000", "http://localhost:5173"],  # Add Vite's default port
         "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-        "allow_headers": ["Content-Type", "x-api-key", "dev-id", "terra-signature"],
+        "allow_headers": ["Content-Type", "Authorization"],
         "expose_headers": "*"
     }
 })
+
+# Add response headers for all routes
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 dev_id = '4actk-fitstreak-testing-wfRE9vBU8U'
 api_key = 'A-vwB8CGUoNrQvbP0SUM-dD4mABGFq7Z'
@@ -39,8 +44,10 @@ def auth_token():
 
     if request.method == "OPTIONS":
         # Create a proper response for OPTIONS request
-        response = flask.Response()
-        response.status_code = 200  # Explicitly set status to 200 OK
+        response = jsonify({"message": "OPTIONS request received"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         return response
     
     url = 'https://api.tryterra.co/v2/auth/generateAuthToken'
@@ -65,72 +72,308 @@ def auth_token():
         print("Error:", str(e))
         return jsonify({"error": str(e)}), 500  # Let Flask-CORS handle CORS headers
 
-@app.route('/analyze_garmin_data', methods=['POST'])
+# Sample Garmin data
+SAMPLE_GARMIN_DATA = {
+    "data": [{
+        "steps": 8500,
+        "calories_data": {
+            "total_burned_calories": 2100
+        },
+        "distance_data": {
+            "distance_meters": 7500
+        }
+    }]
+}
+
+# Sample sleep data
+SAMPLE_SLEEP_DATA = {
+    "data": [{
+        "measurements_data": {
+            "measurements": [
+                {
+                    "measurement_time": "2025-02-16T04:41:46.102000+00:00",
+                    "BMR": 1322,
+                    "RMR": 877
+                },
+                {
+                    "measurement_time": "2025-02-16T07:41:46.102000+00:00",
+                    "BMR": 1021,
+                    "RMR": 1200
+                },
+                {
+                    "measurement_time": "2025-02-16T13:41:46.102000+00:00",
+                    "BMR": 1175,
+                    "RMR": 1064
+                }
+            ]
+        }
+    }]
+}
+
+# Sample body data
+SAMPLE_BODY_DATA = {
+    "data": [{
+        "measurements_data": {
+            "measurements": [
+                {
+                    "measurement_time": "2025-02-16T04:41:46.102000+00:00",
+                    "BMR": 1322,
+                    "RMR": 877,
+                    "lean_mass_g": 37.19,
+                    "bone_mass_g": 10.11,
+                    "BMI": 16.87,
+                    "weight_kg": 45.31,
+                    "bodyfat_percentage": 19.05,
+                    "water_percentage": 24.38,
+                    "muscle_mass_g": 17.43,
+                    "height_cm": 196.62
+                },
+                {
+                    "measurement_time": "2025-02-16T07:41:46.102000+00:00",
+                    "BMR": 1021,
+                    "RMR": 1200,
+                    "lean_mass_g": 34.86,
+                    "bone_mass_g": 12.87,
+                    "BMI": 39.66,
+                    "weight_kg": 77.74,
+                    "bodyfat_percentage": 74.66,
+                    "water_percentage": 69.28,
+                    "muscle_mass_g": 40.30,
+                    "height_cm": 174.47
+                }
+            ]
+        }
+    }]
+}
+
+@app.route('/analyze_garmin_data', methods=['GET'])
 def analyze_garmin_data():
     try:
-        # Get user_id from request
-        user_id = request.json.get('user_id')
-        if not user_id:
-            return jsonify({'error': 'user_id is required'}), 400
-
-        # Get the Terra client
-        terra = Terra(api_key=os.getenv('TERRA_API_KEY'))
+        # Get data from sample
+        data = SAMPLE_GARMIN_DATA['data'][0]
         
-        # Fetch last 24 hours of Garmin data
-        end_date = datetime.datetime.now()
-        start_date = end_date - datetime.timedelta(days=1)
+        # Calculate metrics
+        steps = data.get('steps', 0)
+        calories = data.get('calories_data', {}).get('total_burned_calories', 0)
+        distance = data.get('distance_data', {}).get('distance_meters', 0) / 1000  # Convert to km
         
-        # Get daily data from Terra
-        daily_data = terra.get_daily_data(
-            user_id=user_id,
-            start_date=start_date.isoformat(),
-            end_date=end_date.isoformat(),
-            provider="GARMIN"
-        )
-
-        # Format the data for AI analysis
-        formatted_data = {
-            'steps': daily_data.get('steps', 0),
-            'distance': daily_data.get('distance', 0),
-            'calories': daily_data.get('calories', 0),
-            'heart_rate': daily_data.get('heart_rate', {}),
-            'sleep': daily_data.get('sleep', {})
-        }
-
-        # Create prompt for AI
-        prompt = f"""Analyze the following Garmin fitness data and provide insights:
-        Steps: {formatted_data['steps']}
-        Distance: {formatted_data['distance']} meters
-        Calories: {formatted_data['calories']}
-        Heart Rate Data: {formatted_data['heart_rate']}
-        Sleep Data: {formatted_data['sleep']}
+        # Determine activity level based on steps
+        activity_level = "Low" if steps < 5000 else "Moderate" if steps < 10000 else "High"
+        
+        # Prepare analysis prompt
+        analysis_prompt = f"""
+        As a fitness expert, analyze this user's activity data:
+        
+        Steps: {steps}
+        Calories Burned: {calories}
+        Distance: {distance:.1f} km
+        Activity Level: {activity_level}
         
         Please provide:
-        1. Overall health assessment
-        2. Recommendations for improvement
-        3. Any concerning patterns
+        1. Overall activity assessment
+        2. Specific recommendations for improvement
+        3. Health insights based on these metrics
+        
+        Format the response as a JSON with 'recommendation' and 'insights' fields.
         """
 
         # Get AI analysis
-        response = client.chat.completions.create(
-            model="gpt-4",
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a fitness and health analysis expert."},
-                {"role": "user", "content": prompt}
-            ]
+                {"role": "system", "content": "You are a fitness expert providing evidence-based recommendations."},
+                {"role": "user", "content": analysis_prompt}
+            ],
+            temperature=0.7
         )
 
-        # Extract the AI's response
-        analysis = response.choices[0].message.content
-
+        # Get the content and ensure it's clean text
+        ai_response = response.choices[0].message.content.strip()
+        
+        # Return formatted response
         return jsonify({
-            'raw_data': formatted_data,
-            'analysis': analysis
+            "recommendation": "Based on your activity data: " + ai_response,
+            "insights": [
+                f"Activity Level: {activity_level}",
+                f"Daily Steps: {steps:,}",
+                f"Calories Burned: {calories:,} kcal",
+                f"Distance: {distance:.1f} km"
+            ]
         })
 
     except Exception as e:
-        _LOGGER.error(f"Error analyzing Garmin data: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        app.logger.error(f"Error analyzing Garmin data: {str(e)}")
+        return jsonify({
+            "error": "Failed to analyze Garmin data",
+            "message": str(e)
+        }), 500
+
+@app.route('/analyze_sleep_patterns', methods=['GET'])
+def analyze_sleep_patterns():
+    try:
+        # Get measurements from sample data
+        measurements = SAMPLE_SLEEP_DATA['data'][0]['measurements_data']['measurements']
+        
+        # Calculate sleep metrics
+        bmr_values = [m['BMR'] for m in measurements]
+        rmr_values = [m['RMR'] for m in measurements]
+        
+        avg_bmr = sum(bmr_values) / len(bmr_values)
+        avg_rmr = sum(rmr_values) / len(rmr_values)
+        bmr_change = max(bmr_values) - min(bmr_values)
+        
+        # Determine sleep quality
+        sleep_quality = "Good" if bmr_change < 300 else "Fair" if bmr_change < 500 else "Poor"
+        
+        # Prepare analysis prompt
+        analysis_prompt = f"""
+        As a sleep expert, analyze this user's sleep patterns:
+        
+        Average BMR: {avg_bmr:.0f}
+        Average RMR: {avg_rmr:.0f}
+        BMR Variation: {bmr_change:.0f}
+        Sleep Quality: {sleep_quality}
+        
+        Please provide:
+        1. Overall sleep quality assessment
+        2. Specific recommendations for improvement
+        3. Health insights based on these metrics
+        
+        Format the response as a JSON with 'recommendation' and 'insights' fields.
+        """
+
+        # Get AI analysis
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a sleep expert providing evidence-based recommendations."},
+                {"role": "user", "content": analysis_prompt}
+            ],
+            temperature=0.7
+        )
+
+        # Get the content and ensure it's clean text
+        ai_response = response.choices[0].message.content.strip()
+        
+        # Return formatted response
+        return jsonify({
+            "recommendation": "Sleep Analysis Results: " + ai_response,
+            "insights": [
+                f"Sleep Quality: {sleep_quality}",
+                f"Average BMR: {avg_bmr:.0f}",
+                f"Average RMR: {avg_rmr:.0f}",
+                f"BMR Variation: {bmr_change:.0f}"
+            ]
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error analyzing sleep data: {str(e)}")
+        return jsonify({
+            "error": "Failed to analyze sleep data",
+            "message": str(e)
+        }), 500
+
+@app.route('/analyze_body_composition', methods=['GET'])
+def analyze_body_composition():
+    try:
+        # Get the latest measurement
+        measurements = SAMPLE_BODY_DATA['data'][0]['measurements_data']['measurements']
+        latest_measurement = measurements[0]  # Most recent measurement
+        
+        # Calculate trends
+        trends = {
+            'weight': [m['weight_kg'] for m in measurements],
+            'bodyfat': [m['bodyfat_percentage'] for m in measurements],
+            'muscle_mass': [m['muscle_mass_g'] for m in measurements],
+            'water': [m['water_percentage'] for m in measurements]
+        }
+        
+        # Calculate changes
+        changes = {
+            'weight': trends['weight'][0] - trends['weight'][-1],
+            'bodyfat': trends['bodyfat'][0] - trends['bodyfat'][-1],
+            'muscle_mass': trends['muscle_mass'][0] - trends['muscle_mass'][-1],
+            'water': trends['water'][0] - trends['water'][-1]
+        }
+        
+        # Prepare analysis prompt
+        analysis_prompt = f"""
+        As a body composition expert, analyze this user's measurements:
+        
+        Current Metrics:
+        - BMI: {latest_measurement['BMI']:.1f}
+        - Weight: {latest_measurement['weight_kg']:.1f} kg
+        - Body Fat: {latest_measurement['bodyfat_percentage']:.1f}%
+        - Muscle Mass: {latest_measurement['muscle_mass_g']:.1f}g
+        - Water: {latest_measurement['water_percentage']:.1f}%
+        
+        Recent Changes:
+        - Weight: {changes['weight']:.1f} kg
+        - Body Fat: {changes['bodyfat']:.1f}%
+        - Muscle Mass: {changes['muscle_mass']:.1f}g
+        - Water: {changes['water']:.1f}%
+        
+        Please provide an analysis including:
+        1. Overall assessment
+        2. Analysis of changes
+        3. Recommendations
+        4. Health considerations
+        """
+
+        # Get AI analysis
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a body composition expert providing evidence-based recommendations."},
+                {"role": "user", "content": analysis_prompt}
+            ],
+            temperature=0.7
+        )
+
+        # Get the content and ensure it's clean text
+        ai_response = response.choices[0].message.content.strip()
+        
+        # Return formatted response
+        return jsonify({
+            "recommendation": ai_response,
+            "insights": [
+                f"BMI: {latest_measurement['BMI']:.1f} ({get_bmi_category(latest_measurement['BMI'])})",
+                f"Body Fat: {latest_measurement['bodyfat_percentage']:.1f}% ({get_bodyfat_category(latest_measurement['bodyfat_percentage'])})",
+                f"Muscle Mass: {latest_measurement['muscle_mass_g']:.1f}g",
+                f"Water: {latest_measurement['water_percentage']:.1f}%",
+                f"Weight Change: {changes['weight']:+.1f} kg",
+                f"Body Fat Change: {changes['bodyfat']:+.1f}%"
+            ]
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error analyzing body composition: {str(e)}")
+        return jsonify({
+            "error": "Failed to analyze body composition",
+            "message": str(e)
+        }), 500
+
+def get_bmi_category(bmi):
+    if bmi < 18.5:
+        return "underweight"
+    elif bmi < 25:
+        return "healthy weight"
+    elif bmi < 30:
+        return "overweight"
+    else:
+        return "obese"
+
+def get_bodyfat_category(bf_percentage):
+    if bf_percentage < 6:
+        return "essential fat"
+    elif bf_percentage < 14:
+        return "athletes"
+    elif bf_percentage < 18:
+        return "fitness"
+    elif bf_percentage < 25:
+        return "average"
+    else:
+        return "above average"
 
 if __name__ == '__main__':
     app.run(debug=True, port=5002)

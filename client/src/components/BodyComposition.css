@@ -1,0 +1,85 @@
+.body-composition {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 24px;
+}
+
+.body-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.body-header h2 {
+    margin: 0;
+    color: #000;
+}
+
+.analyze-button {
+    background: #4CAF50;  /* Different color from other analyses */
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.analyze-button:hover {
+    background: #388E3C;
+}
+
+.analyze-button:disabled {
+    background: #666;
+    cursor: not-allowed;
+}
+
+.error-message {
+    background: rgba(255, 87, 87, 0.1);
+    color: #ff5757;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.analysis-results {
+    display: grid;
+    gap: 16px;
+}
+
+.analysis-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.analysis-card h3 {
+    color: #4CAF50;  /* Matching the button color */
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.analysis-card p {
+    color: #000;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.analysis-card ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.analysis-card li {
+    color: #000;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.analysis-card li:last-child {
+    border-bottom: none;
+}
