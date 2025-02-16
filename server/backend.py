@@ -596,5 +596,70 @@ def reset_streak():
             }
         }), 500
 
+@app.route('/update_metrics', methods=['POST', 'OPTIONS'])
+def update_metrics():
+    if request.method == "OPTIONS":
+        response = jsonify({"message": "OPTIONS request received"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+
+    try:
+        data = request.get_json()
+        metrics = data.get('metrics')
+        
+        if not metrics:
+            return jsonify({
+                "status": "error",
+                "message": "Missing metrics data"
+            }), 400
+
+        # Load current goals
+        with open('goals.json', 'r') as f:
+            goals = json.load(f)
+
+        # Update current values based on metrics
+        if 'distance' in metrics:
+            goals['distance']['current'] = float(metrics['distance'])
+        if 'active_time' in metrics:
+            goals['time']['current'] = int(metrics['active_time'])
+        if 'calories' in metrics:
+            goals['calories']['current'] = int(metrics['calories'])
+
+        # Save updated goals
+        with open('goals.json', 'w') as f:
+            json.dump(goals, f)
+
+        print(f"[UPDATE] Updated goals with metrics: {goals}")
+
+        return jsonify({
+            "status": "success",
+            "goals": goals
+        }), 200
+
+    except Exception as e:
+        print(f"Error updating metrics: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/get_goals', methods=['GET'])
+def get_goals():
+    try:
+        with open('goals.json', 'r') as f:
+            goals = json.load(f)
+        return jsonify({
+            "status": "success",
+            "goals": goals
+        }), 200
+    except Exception as e:
+        print(f"Error getting goals: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5002)

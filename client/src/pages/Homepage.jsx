@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { initializeStreak, checkAndUpdateStreak, updateDailyStreak } from '../store/fitnessSlice';
+import { 
+    initializeStreak, 
+    checkAndUpdateStreak, 
+    updateDailyStreak,
+    fetchGoals 
+} from '../store/fitnessSlice';
 import { authService } from '../services/firebase';
 import './Homepage.css';
 import GarminAnalysis from '../components/GarminAnalysis';
@@ -17,17 +22,29 @@ const Homepage = () => {
     const userId = 'current-user-id'; // Replace with actual user ID from auth
 
     useEffect(() => {
-        // Initialize and check streak when component mounts
+        // Initialize streak when component mounts
         dispatch(initializeStreak(userId));
         dispatch(checkAndUpdateStreak(userId));
 
         // Check streak every hour
-        const intervalId = setInterval(() => {
+        const streakInterval = setInterval(() => {
             dispatch(checkAndUpdateStreak(userId));
-        }, 3600000);
+        }, 3600000); // every hour
 
-        return () => clearInterval(intervalId);
+        return () => clearInterval(streakInterval);
     }, [dispatch, userId]);
+
+    useEffect(() => {
+        // Initial goals fetch
+        dispatch(fetchGoals());
+
+        // Check goals every 5 seconds
+        const goalsInterval = setInterval(() => {
+            dispatch(fetchGoals());
+        }, 5000);
+
+        return () => clearInterval(goalsInterval);
+    }, [dispatch]);
 
     const handleUpdateStreak = async () => {
         try {

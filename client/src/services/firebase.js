@@ -255,4 +255,30 @@ export const streakService = {
     }
 };
 
+export const goalsService = {
+    async getGoals() {
+        try {
+            const response = await fetch('http://localhost:5002/get_goals');
+            const data = await response.json();
+            if (data.status === 'error') throw new Error(data.error);
+            return data.goals;
+        } catch (error) {
+            console.error('Error getting goals:', error);
+            throw error;
+        }
+    },
+
+    async updateGoals() {
+        try {
+            const response = await fetch('http://localhost:5002/get_goals');
+            const data = await response.json();
+            if (data.status === 'error') throw new Error(data.error);
+            return data.goals;
+        } catch (error) {
+            console.error('Error updating goals:', error);
+            throw error;
+        }
+    }
+};
+
 export { auth, db };
