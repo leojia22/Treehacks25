@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { authService } from './services/firebase';
 import { setUser, clearUser } from './store/authSlice';
@@ -33,31 +33,9 @@ function App() {
     return () => unsubscribe();
   }, [dispatch]);
 
-  const handleLogout = async () => {
-    try {
-      await authService.signOut();
-    } catch (error) {
-      console.error("Error logging out:", error);
-    }
-  };
-
   return (
     <BrowserRouter>
       <div className="app">
-        {/* 🔹 Navigation Bar */}
-        <nav>
-          <Link to="/">Home</Link>
-          {user && <Link to="/edit-plan">Edit Plan</Link>}
-          {user && <Link to="/terra-auth">Terra Auth</Link>}
-          {user ? (
-            <button onClick={handleLogout} style={{ marginLeft: "10px" }}>
-              Logout
-            </button>
-          ) : (
-            <Link to="/login">Login</Link>
-          )}
-        </nav>
-
         {/* 🔹 Routes */}
         <Routes>
           {/* Public Routes */}

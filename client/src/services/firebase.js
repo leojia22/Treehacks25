@@ -52,6 +52,14 @@ export const authService = {
                 throw new Error('User not properly authenticated after creation');
             }
 
+            // Initialize Terra auth after successful registration
+            try {
+                await terraService.getTerraAuthToken(user.uid);
+            } catch (terraError) {
+                console.error('Terra authentication failed:', terraError);
+                // We don't throw here to not block the registration process
+            }
+
             // Create the user document in Firestore
             const userRef = doc(db, 'users', user.uid);
             console.log('Attempting to create Firestore document for user:', user.uid);
@@ -117,6 +125,35 @@ export const authService = {
                 message: error.message,
                 stack: error.stack
             });
+            throw error;
+        }
+    },
+
+    login: async (email, password) => {
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Initialize Terra auth after successful login
+            try {
+                await terraService.getTerraAuthToken(user.uid);
+            } catch (terraError) {
+                console.error('Terra authentication failed:', terraError);
+                // We don't throw here to not block the login process
+            }
+
+            return user;
+        } catch (error) {
+            console.error('Login error:', error);
+            throw error;
+        }
+    },
+
+    logout: async () => {
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.error('Logout error:', error);
             throw error;
         }
     },

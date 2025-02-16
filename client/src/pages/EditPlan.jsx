@@ -46,29 +46,33 @@ const EditPlan = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Here you could add API calls to save to backend
         navigate('/');
     };
 
     return (
         <div className="edit-plan">
             <header className="edit-header">
-                <h1>Edit Running Goals</h1>
-                <Link to="/" className="back-button">
-                    <svg 
-                        width="20" 
-                        height="20" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2"
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                    >
-                        <path d="M19 12H5M12 19l-7-7 7-7"/>
-                    </svg>
-                    Back
-                </Link>
+                <div className="header-content">
+                    <div className="spacer"></div>
+                    <Link to="/" className="logo">
+                        <h1>Fit Streak</h1>
+                    </Link>
+                    <Link to="/" className="back-button">
+                        <svg 
+                            width="20" 
+                            height="20" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            strokeWidth="2"
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                        >
+                            <path d="M19 12H5M12 19l-7-7 7-7"/>
+                        </svg>
+                        Back
+                    </Link>
+                </div>
             </header>
 
             <form onSubmit={handleSubmit}>
@@ -114,7 +118,7 @@ const EditPlan = () => {
                                 className="form-input"
                                 value={goals.time.value}
                                 onChange={(e) => handleGoalChange('time', e.target.value)}
-                                step="5"
+                                step="1"
                                 min="0"
                             />
                             <span className="unit-label">{goals.time.unit}</span>
@@ -129,7 +133,7 @@ const EditPlan = () => {
                                 className="form-input"
                                 value={goals.calories.value}
                                 onChange={(e) => handleGoalChange('calories', e.target.value)}
-                                step="50"
+                                step="10"
                                 min="0"
                             />
                             <span className="unit-label">{goals.calories.unit}</span>
