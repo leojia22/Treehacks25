@@ -1,4 +1,4 @@
-#!/Users/jacobo/Treehacks25/server/venv/bin/python3.12
+#!/Users/aaronnguyen/treehacks2025/server/venv/bin/python3.12
 # -*- coding: utf-8 -*-
 import re
 import sys

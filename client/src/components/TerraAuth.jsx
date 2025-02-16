@@ -12,11 +12,16 @@ const TerraAuth = () => {
       return;
     }
 
-    const tokenData = await terraService.getTerraAuthToken(user.uid);
-    
-    if (tokenData) {
-      setAuthToken(tokenData.token || JSON.stringify(tokenData, null, 2));
+    try {
+      const tokenData = await terraService.getTerraAuthToken(user.uid);
+      
+      if (tokenData) {
+        setAuthToken(tokenData.token || JSON.stringify(tokenData, null, 2));
+      }
+    } catch(e) {
+      console.log('Error: ', e)
     }
+
   };
 
   return (

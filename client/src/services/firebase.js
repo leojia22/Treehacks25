@@ -229,19 +229,34 @@ export const streakService = {
 
 import axios from "axios";
 
-const BACKEND_URL = "http://localhost:5000";
-
+const BACKEND_URL = "http://localhost:5002";
+const dev_id = '4actk-fitstreak-testing-wfRE9vBU8U'
+const api_key = 'A-vwB8CGUoNrQvbP0SUM-dD4mABGFq7Z'
 export const terraService = {
     async getTerraAuthToken(userId) {
         try {
-            const response = await axios.post(`${BACKEND_URL}/authToken`, { reference_id: userId });
+            console.log("Making request to Terra service with userId:", userId);
+            const response = await axios.post(
+                `${BACKEND_URL}/authToken`, 
+                { reference_id: userId },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': api_key,      // Make sure these values are defined
+                        'dev-id': dev_id
+                    },
+                    withCredentials: false  // Set to true if you need cookies
+                }
+            );
+            console.log("Received response:", response);
             return response.data;
         } catch (error) {
-            console.error("Error fetching Terra Auth Token:", error);
-            return null;
+            console.error("Full error object:", error);
+            console.error("Error response:", error.response);
+            console.error("Error request:", error.request);
+            console.error("Error config:", error.config);
+            throw error;
         }
     }
 };
-
-
 export { auth, db };

@@ -31,21 +31,18 @@ const Homepage = () => {
     const formattedGoals = [
         {
             title: "Distance",
-            icon: "🏃‍♂️",
             target: `${goals.distance.value} ${goals.distance.unit}`,
             current: `${goals.distance.current} ${goals.distance.unit}`,
             progress: calculateProgress(goals.distance)
         },
         {
             title: "Time",
-            icon: "⏱️",
             target: `${goals.time.value} ${goals.time.unit}`,
             current: `${goals.time.current} ${goals.time.unit}`,
             progress: calculateProgress(goals.time)
         },
         {
             title: "Calories",
-            icon: "🔥",
             target: `${goals.calories.value} ${goals.calories.unit}`,
             current: `${goals.calories.current} ${goals.calories.unit}`,
             progress: calculateProgress(goals.calories)
@@ -91,7 +88,6 @@ const Homepage = () => {
                     <div className="streak-error">Error: {streakError}</div>
                 ) : (
                     <>
-                        <div className="streak-icon">🔥</div>
                         <div className="streak-number">{streakCount}</div>
                         <div className="streak-label">Day Streak</div>
                     </>

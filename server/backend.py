@@ -13,57 +13,44 @@ import requests
 logging.basicConfig(level=logging.INFO)
 
 _LOGGER = logging.getLogger("app")
-
 app = flask.Flask(__name__)
-CORS(app)
 
-webhook_secret = "5803b7fc21a38e8ef188f6ed3d6e63e9d096fa72cf3eccd7"
+# Remove the duplicate Flask app initialization
+# Copyapp = flask.Flask(__name__)  <- Remove this line
+
+# Use only Flask-CORS for handling CORS
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+        "allow_headers": ["Content-Type", "x-api-key", "dev-id", "terra-signature"],
+        "expose_headers": "*"
+    }
+})
+
+# Remove the after_request decorator as CORS(app) handles everything
+# @app.after_request
+# def after_request(response):
+#     ... remove this entire function
+
 dev_id = '4actk-fitstreak-testing-wfRE9vBU8U'
 api_key = 'A-vwB8CGUoNrQvbP0SUM-dD4mABGFq7Z'
-
-terra = Terra(api_key=api_key, dev_id=dev_id, secret=webhook_secret)
-
-@app.route("/consumeTerraWebhook", methods=['POST'] )
-
-def consume_terra_webhook():
-    body = request.get_json()
-
-    verified = terra.check_terra_signature(request.data.decode("utf-8"), request.headers['terra-signature'])
-
-    if not verified:
-        _LOGGER.info('NO')
-        return flask.Response(status=403)
-
-    _LOGGER.info("Received Terra Webhook: %s", body)
-
-    return flask.Response(status=200)
-
-@app.route('/authenticate', methods=['GET'])
-def authenticate():
-    widget_response = terra.generate_widget_session(providers=['GARMIN'], reference_='1234')
-    widget_url = widget_response.get_json()['url']
-    return flask.Response(f"<button onclick=\"location.href='{widget_url}'\">Authenticate with GARMIN</button>", mimetype='text/html')
-    
-# 164bd16d-b5f9-4dd4-83e8-bada13a43104
-@app.route('/backfill', methods=['GET'])
-def backfill():
-    user_id = '0b636ce7-bf91-4e5a-bfcb-44d25e460054'
-
-    terra_user = terra.from_user_id(user_id)
-
-    sleep_data = terra_user.get_sleep(
-        start_date=datetime.datetime(2025, 2, 15),
-        end_date=datetime.datetime(2025, 2, 17),
-        to_webhook=False, with_samples=True
-    )
-
-    return sleep_data.get_json()
-
-@app.route('/authToken', methods=['POST'])
+@app.route('/authToken', methods=['POST', 'OPTIONS'])
 def auth_token():
+    print("Received request to /authToken")
+    print("Method:", request.method)
+    print("Headers:", dict(request.headers))
+
+    if request.method == "OPTIONS":
+        # Create a proper response for OPTIONS request
+        response = flask.Response()
+        response.status_code = 200  # Explicitly set status to 200 OK
+        return response
+    
     url = 'https://api.tryterra.co/v2/auth/generateAuthToken'
     
     data = request.get_json()
+    print("Received data:", data)
     reference_id = data.get("reference_id")
 
     headers = {
@@ -77,9 +64,9 @@ def auth_token():
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        return response.text  # Return the token response
+        return response.text, 200, {'Content-Type': 'application/json'}  # Let Flask-CORS handle CORS headers
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        print("Error:", str(e))
+        return jsonify({"error": str(e)}), 500  # Let Flask-CORS handle CORS headers
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5002)
