@@ -1,0 +1,4 @@
+flask
+terra-python
+flask-cors
+openai
